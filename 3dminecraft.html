@@ -1,1 +1,162 @@
+!DOCTYPE html>
+<html>
+<head>
+	<title>3D Minecraft</title>
+	<style type="text/css">
+		body {
+			margin : 0;
+		}
+	</style>
+</head>
+<body>
+	<script src = "three.js"></script>
+	<script src = "perlin.js"></script>
+	<script src = "PointerLockControls.js"></script>
+ 	<script type="text/javascript">
+ 		noise.seed(Math.random());
 
+ 		var scene = new THREE.Scene();
+		var renderer = new THREE.WebGLRenderer();
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		document.body.appendChild(renderer.domElement);
+		var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+		/*
+		var groundBox = new THREE.BoxBufferGeometry(25, 1, 50);
+		var groundMesh = new THREE.MeshBasicMaterial({color : 0x00ff00});
+		var ground = new THREE.Mesh(groundBox, groundMesh);
+		scene.add(ground);
+		ground.position.y = -5;
+
+		// Creating the border lines for ground
+		var edges = new THREE.EdgesGeometry(groundBox);
+		var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000}));
+		scene.add(line);
+		line.position.y = -5;
+		*/
+
+		function Block(x, y, z){
+			this.x = x;
+			this.y = y;
+			this.z = z;
+
+			this.display = function(){
+				var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); // w, h, d
+				var blockMesh = new THREE.MeshBasicMaterial({color : 0x00ff00});
+				var block = new THREE.Mesh(blockBox, blockMesh);
+				scene.add(block);
+				block.position.x = this.x;
+				block.position.y = this.y - 10;
+				block.position.z = this.z;
+
+				var edges = new THREE.EdgesGeometry(blockBox);
+				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000}));
+				scene.add(line);
+				line.position.x = this.x;
+				line.position.y = this.y - 10;
+				line.position.z = this.z;
+			}
+		}
+
+		var blocks = [];
+		var xoff = 0;
+		var zoff = 0;
+		var inc = 0.05;
+		var amplitude = 50;
+		for(var x = 0; x < 20; x++){
+			xoff = 0;
+			for(var z = 0; z < 20; z++){
+				var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+				blocks.push(new Block(x * 5, v, z * 5));
+				xoff = xoff + inc;
+			}
+			zoff = zoff + inc;
+		}
+
+		for(var i = 0; i < blocks.length; i++){
+			blocks[i].display();
+		}
+
+		var keys = [];
+		var canJump = true;
+		document.addEventListener("keydown", function(e){
+			keys.push(e.key);
+			if(e.key == " " && canJump == true){
+				ySpeed = -1.3;
+				canJump = false;
+			}
+		});
+		document.addEventListener("keyup", function(e){
+			var newArr = [];
+			for(var i = 0; i < keys.length; i++){
+				if(keys[i] != e.key){
+					newArr.push(keys[i]);
+				}
+			}
+			keys = newArr;
+		});
+
+		var controls = new THREE.PointerLockControls(camera, document.body);
+		document.body.addEventListener("click", function(){
+			controls.lock();
+		});
+		controls.addEventListener("lock", function(){
+
+		});
+		controls.addEventListener("unlock", function(){
+
+		});
+
+		var movingSpeed = 0.7;
+		var ySpeed = 0;
+		var acc = 0.08;
+		function update(){
+			if(keys.includes("w")){
+				controls.moveForward(movingSpeed);
+			}
+			if(keys.includes("a")){
+				controls.moveRight(-1 * movingSpeed);
+			}
+			if(keys.includes("s")){
+				controls.moveForward(-1 * movingSpeed);
+			}
+			if(keys.includes("d")){
+				controls.moveRight(movingSpeed);
+			}
+
+			camera.position.y = camera.position.y - ySpeed;
+			ySpeed = ySpeed + acc;
+
+			for(var i = 0; i < blocks.length; i++){
+				if(camera.position.x <= blocks[i].x + 5 && camera.position.x >= blocks[i].x && camera.position.z <= blocks[i].z + 5 && camera.position.z >= blocks[i].z){
+					if(camera.position.y < blocks[i].y){
+						camera.position.y = blocks[i].y;
+						ySpeed = 0;
+						canJump = true;
+						break;
+					}
+				}
+			}
+		}
+
+		// Resize Winodw
+		window.addEventListener("resize", function(){
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+		});
+
+		function render(){
+			renderer.render(scene, camera);
+		}
+
+		function GameLoop(){
+			requestAnimationFrame(GameLoop);
+			update();
+			render();
+		}
+
+		GameLoop();
+ 	</script>
+</body>
+</html>
