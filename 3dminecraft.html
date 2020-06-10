@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 	<title>3D Minecraft</title>
@@ -6,9 +6,17 @@
 		body {
 			margin : 0;
 		}
+		#autojumpbutton {
+			position : absolute;
+			left : 20px;
+			top : 20px;
+		}
 	</style>
 </head>
 <body>
+
+	<button id = "autojumpbutton" onclick = "toggleAutoJump()"><h2>AutoJump : On</h2></button>
+
 	<script src = "three.js"></script>
 	<script src = "perlin.js"></script>
 	<script src = "PointerLockControls.js"></script>
@@ -35,6 +43,17 @@
 		line.position.y = -5;
 		*/
 
+		var autoJump = true;
+		function toggleAutoJump(){
+			if(autoJump == true){
+				autoJump = false;
+				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : Off</h2>";
+			} else {
+				autoJump = true;
+				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : On</h2>";
+			}
+		}
+
 		function Block(x, y, z){
 			this.x = x;
 			this.y = y;
@@ -50,13 +69,16 @@
 				block.position.z = this.z;
 
 				var edges = new THREE.EdgesGeometry(blockBox);
-				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000}));
+				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 4}));
 				scene.add(line);
 				line.position.x = this.x;
 				line.position.y = this.y - 10;
 				line.position.z = this.z;
 			}
 		}
+
+		// var axesHelper = new THREE.AxesHelper( 5 );
+		// scene.add( axesHelper );
 
 		var blocks = [];
 		var xoff = 0;
@@ -113,24 +135,60 @@
 		function update(){
 			if(keys.includes("w")){
 				controls.moveForward(movingSpeed);
+				if(autoJump == false){
+					for(var i = 0; i < blocks.length; i++){
+						if(camera.position.x <= blocks[i].x + 2.5 && camera.position.x >= blocks[i].x - 2.5 && camera.position.z <= blocks[i].z + 2.5 && camera.position.z >= blocks[i].z - 2.5){
+							if(camera.position.y == blocks[i].y - 2.5){
+								controls.moveForward(-1 * movingSpeed);
+							}
+						}
+					}
+				}
 			}
 			if(keys.includes("a")){
 				controls.moveRight(-1 * movingSpeed);
+				if(autoJump == false){
+					for(var i = 0; i < blocks.length; i++){
+						if(camera.position.x <= blocks[i].x + 2.5 && camera.position.x >= blocks[i].x - 2.5 && camera.position.z <= blocks[i].z + 2.5 && camera.position.z >= blocks[i].z - 2.5){
+							if(camera.position.y == blocks[i].y - 2.5){
+								controls.moveRight(movingSpeed);
+							}
+						}
+					}
+				}
 			}
 			if(keys.includes("s")){
 				controls.moveForward(-1 * movingSpeed);
+				if(autoJump == false){
+					for(var i = 0; i < blocks.length; i++){
+						if(camera.position.x <= blocks[i].x + 2.5 && camera.position.x >= blocks[i].x - 2.5 && camera.position.z <= blocks[i].z + 2.5 && camera.position.z >= blocks[i].z - 2.5){
+							if(camera.position.y == blocks[i].y - 2.5){
+								controls.moveForward(movingSpeed);
+							}
+						}
+					}
+				}
 			}
 			if(keys.includes("d")){
 				controls.moveRight(movingSpeed);
+				if(autoJump == false){
+					for(var i = 0; i < blocks.length; i++){
+						if(camera.position.x <= blocks[i].x + 2.5 && camera.position.x >= blocks[i].x - 2.5 && camera.position.z <= blocks[i].z + 2.5 && camera.position.z >= blocks[i].z - 2.5){
+							if(camera.position.y == blocks[i].y - 2.5){
+								controls.moveRight(-1 * movingSpeed);
+							}
+						}
+					}
+				}
 			}
 
 			camera.position.y = camera.position.y - ySpeed;
 			ySpeed = ySpeed + acc;
 
 			for(var i = 0; i < blocks.length; i++){
-				if(camera.position.x <= blocks[i].x + 5 && camera.position.x >= blocks[i].x && camera.position.z <= blocks[i].z + 5 && camera.position.z >= blocks[i].z){
-					if(camera.position.y < blocks[i].y){
-						camera.position.y = blocks[i].y;
+				if(camera.position.x <= blocks[i].x + 2.5 && camera.position.x >= blocks[i].x - 2.5 && camera.position.z <= blocks[i].z + 2.5 && camera.position.z >= blocks[i].z - 2.5){
+					if(camera.position.y <= blocks[i].y + 2.5 && camera.position.y >= blocks[i].y - 2.5){
+						camera.position.y = blocks[i].y + 2.5;
 						ySpeed = 0;
 						canJump = true;
 						break;
