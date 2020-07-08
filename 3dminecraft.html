@@ -53,6 +53,18 @@
 				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : On</h2>";
 			}
 		}
+		
+		var loader = new THREE.TextureLoader();
+		var materialArray = [
+
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side4.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side1.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/top.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/bottom.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side2.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side3.jpg")}),
+
+		];
 
 		function Block(x, y, z){
 			this.x = x;
@@ -61,15 +73,15 @@
 
 			this.display = function(){
 				var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); // w, h, d
-				var blockMesh = new THREE.MeshBasicMaterial({color : 0x00ff00});
-				var block = new THREE.Mesh(blockBox, blockMesh);
+				// var blockMaterial = new THREE.MeshBasicMaterial({color : 0x00ff00});
+				var block = new THREE.Mesh(blockBox, materialArray);
 				scene.add(block);
 				block.position.x = this.x;
 				block.position.y = this.y - 10;
 				block.position.z = this.z;
 
 				var edges = new THREE.EdgesGeometry(blockBox);
-				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 4}));
+				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 10}));
 				scene.add(line);
 				line.position.x = this.x;
 				line.position.y = this.y - 10;
