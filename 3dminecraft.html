@@ -71,22 +71,24 @@
 			this.x = x;
 			this.y = y;
 			this.z = z;
+			this.mesh;
+			this.line;
 
 			this.display = function(){
 				var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); // w, h, d
 				// var blockMaterial = new THREE.MeshBasicMaterial({color : 0x00ff00});
-				var block = new THREE.Mesh(blockBox, materialArray);
-				scene.add(block);
-				block.position.x = this.x;
-				block.position.y = this.y - 10;
-				block.position.z = this.z;
+				this.mesh = new THREE.Mesh(blockBox, materialArray);
+				scene.add(this.mesh);
+				this.mesh.position.x = this.x;
+				this.mesh.position.y = this.y - 10;
+				this.mesh.position.z = this.z;
 
 				var edges = new THREE.EdgesGeometry(blockBox);
-				var line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 4}));
-				scene.add(line);
-				line.position.x = this.x;
-				line.position.y = this.y - 10;
-				line.position.z = this.z;
+				this.line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 4}));
+				scene.add(this.line);
+				this.line.position.x = this.x;
+				this.line.position.y = this.y - 10;
+				this.line.position.z = this.z;
 			}
 		}
 
@@ -121,8 +123,8 @@
 		camera.position.z = renderDistance * chunkSize / 2 * 5;
 		camera.position.y = 50;
 		for(var i = 0; i < renderDistance; i++){
-			var chunk = [];
 			for(j = 0; j < renderDistance; j++){
+				var chunk = [];
 				for(var x = i * chunkSize; x < (i * chunkSize) + chunkSize; x++){
 					for(var z = j * chunkSize; z < (j * chunkSize) + chunkSize; z++){
 						xoff = inc * x;
@@ -131,8 +133,8 @@
 						chunk.push(new Block(x * 5, v, z * 5));
 					}
 				}
+				chunks.push(chunk);
 			}
-			chunks.push(chunk);
 		}
 
 		for(var i = 0; i < chunks.length; i++){
@@ -247,6 +249,97 @@
 					}
 				}
 			}
+
+			if(camera.position.z <= lowestZBlock() + 20){ // 20 is 4 blocks
+				/*
+					
+					[0], [3], [6],
+					[1], [x], [7],
+					[2], [5], [8],
+				*/
+
+				// remove blocks (chunks)
+				for(var i = 0; i < chunks.length; i++){
+					if((i + 1) % renderDistance == 0){
+						for(var j = 0; j < chunks[i].length; j++){
+							scene.remove(chunks[i][j].mesh);
+							scene.remove(chunks[i][j].line);
+						}
+					}
+				}
+				var newChunks = [];
+				for(var i = 0; i < chunks.length; i++){
+					if((i + 1) % renderDistance != 0){
+						newChunks.push(chunks[i]);
+					}
+				}
+
+				// add blocks
+				var lowestX = lowestXBlock();
+				var lowestZ = lowestZBlock();
+				for(var i = 0; i < renderDistance; i++){
+					var chunk = [];
+					for(var x = lowestX + (i * chunkSize * 5); x < lowestX + (i * chunkSize * 5) + (chunkSize * 5); x = x + 5){
+						for(var z = lowestZ - (chunkSize * 5); z < lowestZ; z = z + 5){
+							xoff = inc * x / 5;
+							zoff = inc * z / 5;
+							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+							chunk.push(new Block(x, v, z));
+						}
+					}
+					newChunks.splice(i * renderDistance, 0, chunk);
+				}
+
+				chunks = newChunks;
+
+				for(var i = 0; i < chunks.length; i++){
+					if(i % renderDistance == 0){
+						for(var j = 0; j < chunks[i].length; j++){
+							chunks[i][j].display();
+						}
+					}
+				}
+			}
+		}
+
+		function lowestXBlock(){
+			var xPosArray = [];
+			for(var i = 0; i < chunks.length; i++){
+				for(var j = 0; j < chunks[i].length; j++){
+					xPosArray.push(chunks[i][j].x);
+				}
+			}
+			return Math.min.apply(null, xPosArray);
+		}
+
+		function highestXBlock(){
+			var xPosArray = [];
+			for(var i = 0; i < chunks.length; i++){
+				for(var j = 0; j < chunks[i].length; j++){
+					xPosArray.push(chunks[i][j].x);
+				}
+			}
+			return Math.max.apply(null, xPosArray);
+		}
+
+		function lowestZBlock(){
+			var zPosArray = [];
+			for(var i = 0; i < chunks.length; i++){
+				for(var j = 0; j < chunks[i].length; j++){
+					zPosArray.push(chunks[i][j].z);
+				}
+			}
+			return Math.min.apply(null, zPosArray);
+		}
+
+		function highestZBlock(){
+			var zPosArray = [];
+			for(var i = 0; i < chunks.length; i++){
+				for(var j = 0; j < chunks[i].length; j++){
+					zPosArray.push(chunks[i][j].z);
+				}
+			}
+			return Math.max.apply(null, zPosArray);
 		}
 
 		// Resize Window
@@ -270,11 +363,6 @@
  	</script>
 </body>
 </html>
-
-
-
-
-
 
 
 
