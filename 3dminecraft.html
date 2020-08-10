@@ -292,11 +292,148 @@
 
 				chunks = newChunks;
 
+				for(var i = 0; i < chunks.length - renderDistance + 1; i = i + renderDistance){
+					for(var j = 0; j < chunks[i].length; j++){
+						chunks[i][j].display();
+					}
+				}
+			}
+
+			if(camera.position.z >= highestZBlock() - 20){ // 20 is 4 blocks
+				/*
+					
+					[0], [3], [6],
+					[1], [x], [7],
+					[2], [5], [8],
+				*/
+
+				// remove blocks (chunks)
 				for(var i = 0; i < chunks.length; i++){
 					if(i % renderDistance == 0){
 						for(var j = 0; j < chunks[i].length; j++){
-							chunks[i][j].display();
+							scene.remove(chunks[i][j].mesh);
+							scene.remove(chunks[i][j].line);
 						}
+					}
+				}
+				var newChunks = [];
+				for(var i = 0; i < chunks.length; i++){
+					if(i % renderDistance != 0){
+						newChunks.push(chunks[i]);
+					}
+				}
+
+				// add blocks
+				var lowestX = lowestXBlock();
+				var highestZ = highestZBlock();
+				for(var i = 0; i < renderDistance; i++){
+					var chunk = [];
+					for(var x = lowestX + (i * chunkSize * 5); x < lowestX + (i * chunkSize * 5) + (chunkSize * 5); x = x + 5){
+						for(var z = highestZ + 5; z < (highestZ + 5) + (chunkSize * 5); z = z + 5){
+							xoff = inc * x / 5;
+							zoff = inc * z / 5;
+							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+							chunk.push(new Block(x, v, z));
+						}
+					}
+					newChunks.splice((i * renderDistance) + 2, 0, chunk);
+				}
+
+				chunks = newChunks;
+
+				for(var i = renderDistance - 1; i < chunks.length; i = i + renderDistance){
+					for(var j = 0; j < chunks[i].length; j++){
+						chunks[i][j].display();
+					}
+				}
+			}
+
+			if(camera.position.x >= highestXBlock() - 20){ // 20 is 4 blocks
+				/*
+					
+					[0], [3], [6],
+					[1], [x], [7],
+					[2], [5], [8],
+				*/
+
+				// remove blocks (chunks)
+				for(var i = 0; i < renderDistance; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						scene.remove(chunks[i][j].mesh);
+						scene.remove(chunks[i][j].line);
+					}
+				}
+				var newChunks = [];
+				for(var i = renderDistance; i < chunks.length; i++){
+					newChunks.push(chunks[i]);
+				}
+
+				// add blocks
+				var highestX = highestXBlock();
+				var lowestZ = lowestZBlock();
+				for(var i = 0; i < renderDistance; i++){
+					var chunk = [];
+					for(var z = lowestZ + (i * chunkSize * 5); z < lowestZ + (i * chunkSize * 5) + (chunkSize * 5); z = z + 5){
+						for(var x = highestX + 5; x < highestX + 5 + (chunkSize * 5); x = x + 5){
+							xoff = inc * x / 5;
+							zoff = inc * z / 5;
+							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+							chunk.push(new Block(x, v, z));
+						}
+					}
+					newChunks.splice(chunks.length - (renderDistance - i), 0, chunk);
+				}
+
+				chunks = newChunks;
+
+				for(var i = chunks.length - renderDistance; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						chunks[i][j].display();
+					}
+				}
+			}
+
+			if(camera.position.x <= lowestXBlock() + 20){ // 20 is 4 blocks
+				/*
+					
+					[0], [3], [6],
+					[1], [x], [7],
+					[2], [5], [8],
+				*/
+
+				// remove blocks (chunks)
+				for(var i = chunks.length - renderDistance; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						scene.remove(chunks[i][j].mesh);
+						scene.remove(chunks[i][j].line);
+					}
+				}
+				var newChunks = [];
+				for(var i = 0; i < chunks.length - renderDistance; i++){
+					newChunks.push(chunks[i]);
+				}
+
+				// add blocks
+				var lowestX = lowestXBlock();
+				var lowestZ = lowestZBlock();
+				for(var i = 0; i < renderDistance; i++){
+					var chunk = [];
+					for(var z = lowestZ + (i * chunkSize * 5); z < lowestZ + (i * chunkSize * 5) + (chunkSize * 5); z = z + 5){
+						for(var x = lowestX - (chunkSize * 5); x < lowestX; x = x + 5){
+							xoff = inc * x / 5;
+							zoff = inc * z / 5;
+							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
+							chunk.push(new Block(x, v, z));
+						}
+					}
+					newChunks.splice(i, 0, chunk);
+				}
+
+				chunks = newChunks;
+
+				for(var i = 0; i < renderDistance; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						chunks[i][j].display();
 					}
 				}
 			}
@@ -363,7 +500,3 @@
  	</script>
 </body>
 </html>
-
-
-
-
