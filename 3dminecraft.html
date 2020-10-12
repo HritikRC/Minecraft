@@ -20,11 +20,30 @@
 	<script src = "three.js"></script>
 	<script src = "perlin.js"></script>
 	<script src = "PointerLockControls.js"></script>
+	<script src = "stats.js"></script>
  	<script type="text/javascript">
+
+ 		var stats = new Stats();
+ 		stats.showPanel(0); // 0:fps, 1:ms, 2:mb, 3+:custom
+ 		document.body.appendChild(stats.dom);
+
+ 		function animate(){
+ 			stats.begin();
+
+ 			// monitored code goes between this called functions
+
+ 			stats.end();
+
+ 			requestAnimationFrame(animate);
+ 		}
+
+ 		requestAnimationFrame(animate);
+
  		noise.seed(Math.random());
 
  		var scene = new THREE.Scene();
  		scene.background = new THREE.Color(0x00ffff);
+ 		scene.fog = new THREE.Fog(0x000000, 10, 200);
 		var renderer = new THREE.WebGLRenderer();
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		document.body.appendChild(renderer.domElement);
@@ -67,6 +86,27 @@
 
 		];
 
+		var faces = [
+			{ // left
+			    dir: [ -5,  0,  0, "left"],
+			},
+			{ // right
+			    dir: [  5,  0,  0, "right"],
+			},
+			{ // bottom
+			    dir: [  0, -5,  0, "bottom"],
+			},
+			{ // top
+			    dir: [  0,  5,  0, "top"],
+			},
+			{ // back
+			    dir: [  0,  0, -5, "back"],
+			},
+			{ // front
+			    dir: [  0,  0,  5, "front"],
+			},
+		];
+
 		function Block(x, y, z){
 			this.x = x;
 			this.y = y;
@@ -74,10 +114,63 @@
 			this.mesh;
 			this.line;
 
+			this.getVoxel = function(x, y, z){
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						if(chunks[i][j].x == x && chunks[i][j].y == y && chunks[i][j].z == z){
+							return true;
+						}
+					}
+				}
+				return false;
+			}
+
+			this.directions = [];
+			this.adjustFaces = function(){
+				for (const {dir} of faces) {
+	                const neighbour = this.getVoxel(
+	                    this.x + dir[0],
+	                    this.y + dir[1],
+	                    this.z + dir[2]
+	                );
+	                if(neighbour){
+	                	switch(dir[3]){
+	                		case "right":
+	                			this.directions.push("right");
+	                			break;
+	                		case "left":
+	                			this.directions.push("left");
+	                			break;
+	                		case "bottom":
+	                			this.directions.push("bottom");
+	                			break;
+	                		case "top":
+	                			this.directions.push("top");
+	                			break;
+	                		case "back":
+	                			this.directions.push("back");
+	                			break;
+	                		case "front":
+	                			this.directions.push("front");
+	                			break;
+	                	}
+	                }
+	            }
+			}
+
 			this.display = function(){
+				this.adjustFaces();
+
 				var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); // w, h, d
 				// var blockMaterial = new THREE.MeshBasicMaterial({color : 0x00ff00});
-				this.mesh = new THREE.Mesh(blockBox, materialArray);
+				this.mesh = new THREE.Mesh(blockBox, [
+					(this.directions.includes("right") ? null : materialArray[0]), // right
+					(this.directions.includes("left") ? null : materialArray[1]), // left
+					(this.directions.includes("top") ? null : materialArray[2]), // top
+					(this.directions.includes("bottom") ? null : materialArray[3]), // bottom
+					(this.directions.includes("front") ? null : materialArray[4]), // front
+					(this.directions.includes("back") ? null : materialArray[5]), // back
+				]);
 				scene.add(this.mesh);
 				this.mesh.position.x = this.x;
 				this.mesh.position.y = this.y - 10;
@@ -117,7 +210,7 @@
 		var zoff = 0;
 		var inc = 0.05;
 		var amplitude = 30 + (Math.random() * 70);
-		var renderDistance = 3;
+		var renderDistance = 5;
 		var chunkSize = 10;
 		camera.position.x = renderDistance * chunkSize / 2 * 5;
 		camera.position.z = renderDistance * chunkSize / 2 * 5;
@@ -500,3 +593,5 @@
  	</script>
 </body>
 </html>
+
+
