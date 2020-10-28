@@ -43,7 +43,7 @@
 
  		var scene = new THREE.Scene();
  		scene.background = new THREE.Color(0x00ffff);
- 		scene.fog = new THREE.Fog(0x000000, 10, 200);
+ 		scene.fog = new THREE.Fog(0x00ffff, 10, 650);
 		var renderer = new THREE.WebGLRenderer();
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		document.body.appendChild(renderer.domElement);
@@ -73,18 +73,6 @@
 				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : On</h2>";
 			}
 		}
-		
-		var loader = new THREE.TextureLoader();
-		var materialArray = [
-        
-			new THREE.MeshBasicMaterial({map : loader.load("texture/side4.jpg")}),
-			new THREE.MeshBasicMaterial({map : loader.load("texture/side1.jpg")}),
-			new THREE.MeshBasicMaterial({map : loader.load("texture/top.jpg")}),
-			new THREE.MeshBasicMaterial({map : loader.load("texture/bottom.jpg")}),
-			new THREE.MeshBasicMaterial({map : loader.load("texture/side2.jpg")}),
-			new THREE.MeshBasicMaterial({map : loader.load("texture/side3.jpg")}),
-
-		];
 
 		var faces = [
 			{ // left
@@ -111,78 +99,6 @@
 			this.x = x;
 			this.y = y;
 			this.z = z;
-			this.mesh;
-			this.line;
-
-			this.getVoxel = function(x, y, z){
-				for(var i = 0; i < chunks.length; i++){
-					for(var j = 0; j < chunks[i].length; j++){
-						if(chunks[i][j].x == x && chunks[i][j].y == y && chunks[i][j].z == z){
-							return true;
-						}
-					}
-				}
-				return false;
-			}
-
-			this.directions = [];
-			this.adjustFaces = function(){
-				for (const {dir} of faces) {
-	                const neighbour = this.getVoxel(
-	                    this.x + dir[0],
-	                    this.y + dir[1],
-	                    this.z + dir[2]
-	                );
-	                if(neighbour){
-	                	switch(dir[3]){
-	                		case "right":
-	                			this.directions.push("right");
-	                			break;
-	                		case "left":
-	                			this.directions.push("left");
-	                			break;
-	                		case "bottom":
-	                			this.directions.push("bottom");
-	                			break;
-	                		case "top":
-	                			this.directions.push("top");
-	                			break;
-	                		case "back":
-	                			this.directions.push("back");
-	                			break;
-	                		case "front":
-	                			this.directions.push("front");
-	                			break;
-	                	}
-	                }
-	            }
-			}
-
-			this.display = function(){
-				this.adjustFaces();
-
-				var blockBox = new THREE.BoxBufferGeometry(5, 5, 5); // w, h, d
-				// var blockMaterial = new THREE.MeshBasicMaterial({color : 0x00ff00});
-				this.mesh = new THREE.Mesh(blockBox, [
-					(this.directions.includes("right") ? null : materialArray[0]), // right
-					(this.directions.includes("left") ? null : materialArray[1]), // left
-					(this.directions.includes("top") ? null : materialArray[2]), // top
-					(this.directions.includes("bottom") ? null : materialArray[3]), // bottom
-					(this.directions.includes("front") ? null : materialArray[4]), // front
-					(this.directions.includes("back") ? null : materialArray[5]), // back
-				]);
-				scene.add(this.mesh);
-				this.mesh.position.x = this.x;
-				this.mesh.position.y = this.y - 10;
-				this.mesh.position.z = this.z;
-
-				var edges = new THREE.EdgesGeometry(blockBox);
-				this.line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color : 0x000000, linewidth : 4}));
-				scene.add(this.line);
-				this.line.position.x = this.x;
-				this.line.position.y = this.y - 10;
-				this.line.position.z = this.z;
-			}
 		}
 
 		// var axesHelper = new THREE.AxesHelper( 5 );
@@ -210,11 +126,25 @@
 		var zoff = 0;
 		var inc = 0.05;
 		var amplitude = 30 + (Math.random() * 70);
-		var renderDistance = 5;
+		var renderDistance = 3;
 		var chunkSize = 10;
 		camera.position.x = renderDistance * chunkSize / 2 * 5;
 		camera.position.z = renderDistance * chunkSize / 2 * 5;
 		camera.position.y = 50;
+
+		var loader = new THREE.TextureLoader();
+		var materialArray = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side4.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side1.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/top.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/bottom.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side2.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/side3.jpg")}),
+		];
+
+		var blockBox = new THREE.BoxGeometry(5, 5, 5)
+		var instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+		var count = 0;
 		for(var i = 0; i < renderDistance; i++){
 			for(j = 0; j < renderDistance; j++){
 				var chunk = [];
@@ -224,17 +154,20 @@
 						zoff = inc * z;
 						var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
 						chunk.push(new Block(x * 5, v, z * 5));
+						let matrix = new THREE.Matrix4().makeTranslation(
+							x * 5,
+							v,
+							z * 5
+						);
+						instancedChunk.setMatrixAt(count, matrix);
+						count++;
 					}
 				}
 				chunks.push(chunk);
 			}
 		}
 
-		for(var i = 0; i < chunks.length; i++){
-			for(var j = 0; j < chunks[i].length; j++){
-				chunks[i][j].display();
-			}
-		}
+		scene.add(instancedChunk);
 
 		var keys = [];
 		var canJump = true;
@@ -333,8 +266,8 @@
 			for(var i = 0; i < chunks.length; i++){
 				for(var j = 0; j < chunks[i].length; j++){
 					if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-						if(camera.position.y <= chunks[i][j].y + 2.5 && camera.position.y >= chunks[i][j].y - 2.5){
-							camera.position.y = chunks[i][j].y + 2.5;
+						if(camera.position.y <= chunks[i][j].y + 10 && camera.position.y >= chunks[i][j].y){
+							camera.position.y = chunks[i][j].y + 10;
 							ySpeed = 0;
 							canJump = true;
 							break;
@@ -351,15 +284,6 @@
 					[2], [5], [8],
 				*/
 
-				// remove blocks (chunks)
-				for(var i = 0; i < chunks.length; i++){
-					if((i + 1) % renderDistance == 0){
-						for(var j = 0; j < chunks[i].length; j++){
-							scene.remove(chunks[i][j].mesh);
-							scene.remove(chunks[i][j].line);
-						}
-					}
-				}
 				var newChunks = [];
 				for(var i = 0; i < chunks.length; i++){
 					if((i + 1) % renderDistance != 0){
@@ -370,6 +294,7 @@
 				// add blocks
 				var lowestX = lowestXBlock();
 				var lowestZ = lowestZBlock();
+
 				for(var i = 0; i < renderDistance; i++){
 					var chunk = [];
 					for(var x = lowestX + (i * chunkSize * 5); x < lowestX + (i * chunkSize * 5) + (chunkSize * 5); x = x + 5){
@@ -385,11 +310,23 @@
 
 				chunks = newChunks;
 
-				for(var i = 0; i < chunks.length - renderDistance + 1; i = i + renderDistance){
+
+				scene.remove(instancedChunk);
+
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				var count = 0;
+				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						chunks[i][j].display();
+						let matrix = new THREE.Matrix4().makeTranslation(
+							chunks[i][j].x,
+							chunks[i][j].y,
+							chunks[i][j].z
+						);
+						instancedChunk.setMatrixAt(count, matrix);
+						count++;
 					}
 				}
+				scene.add(instancedChunk);
 			}
 
 			if(camera.position.z >= highestZBlock() - 20){ // 20 is 4 blocks
@@ -400,15 +337,6 @@
 					[2], [5], [8],
 				*/
 
-				// remove blocks (chunks)
-				for(var i = 0; i < chunks.length; i++){
-					if(i % renderDistance == 0){
-						for(var j = 0; j < chunks[i].length; j++){
-							scene.remove(chunks[i][j].mesh);
-							scene.remove(chunks[i][j].line);
-						}
-					}
-				}
 				var newChunks = [];
 				for(var i = 0; i < chunks.length; i++){
 					if(i % renderDistance != 0){
@@ -434,11 +362,22 @@
 
 				chunks = newChunks;
 
-				for(var i = renderDistance - 1; i < chunks.length; i = i + renderDistance){
+				scene.remove(instancedChunk);
+
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				var count = 0;
+				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						chunks[i][j].display();
+						let matrix = new THREE.Matrix4().makeTranslation(
+							chunks[i][j].x,
+							chunks[i][j].y,
+							chunks[i][j].z
+						);
+						instancedChunk.setMatrixAt(count, matrix);
+						count++;
 					}
 				}
+				scene.add(instancedChunk);		
 			}
 
 			if(camera.position.x >= highestXBlock() - 20){ // 20 is 4 blocks
@@ -449,13 +388,6 @@
 					[2], [5], [8],
 				*/
 
-				// remove blocks (chunks)
-				for(var i = 0; i < renderDistance; i++){
-					for(var j = 0; j < chunks[i].length; j++){
-						scene.remove(chunks[i][j].mesh);
-						scene.remove(chunks[i][j].line);
-					}
-				}
 				var newChunks = [];
 				for(var i = renderDistance; i < chunks.length; i++){
 					newChunks.push(chunks[i]);
@@ -464,6 +396,7 @@
 				// add blocks
 				var highestX = highestXBlock();
 				var lowestZ = lowestZBlock();
+
 				for(var i = 0; i < renderDistance; i++){
 					var chunk = [];
 					for(var z = lowestZ + (i * chunkSize * 5); z < lowestZ + (i * chunkSize * 5) + (chunkSize * 5); z = z + 5){
@@ -479,11 +412,22 @@
 
 				chunks = newChunks;
 
-				for(var i = chunks.length - renderDistance; i < chunks.length; i++){
+				scene.remove(instancedChunk);
+
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				var count = 0;
+				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						chunks[i][j].display();
+						let matrix = new THREE.Matrix4().makeTranslation(
+							chunks[i][j].x,
+							chunks[i][j].y,
+							chunks[i][j].z
+						);
+						instancedChunk.setMatrixAt(count, matrix);
+						count++;
 					}
 				}
+				scene.add(instancedChunk);				
 			}
 
 			if(camera.position.x <= lowestXBlock() + 20){ // 20 is 4 blocks
@@ -494,13 +438,6 @@
 					[2], [5], [8],
 				*/
 
-				// remove blocks (chunks)
-				for(var i = chunks.length - renderDistance; i < chunks.length; i++){
-					for(var j = 0; j < chunks[i].length; j++){
-						scene.remove(chunks[i][j].mesh);
-						scene.remove(chunks[i][j].line);
-					}
-				}
 				var newChunks = [];
 				for(var i = 0; i < chunks.length - renderDistance; i++){
 					newChunks.push(chunks[i]);
@@ -522,13 +459,22 @@
 					newChunks.splice(i, 0, chunk);
 				}
 
-				chunks = newChunks;
+				scene.remove(instancedChunk);
 
-				for(var i = 0; i < renderDistance; i++){
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				var count = 0;
+				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						chunks[i][j].display();
+						let matrix = new THREE.Matrix4().makeTranslation(
+							chunks[i][j].x,
+							chunks[i][j].y,
+							chunks[i][j].z
+						);
+						instancedChunk.setMatrixAt(count, matrix);
+						count++;
 					}
 				}
+				scene.add(instancedChunk);	
 			}
 		}
 
