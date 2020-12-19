@@ -126,7 +126,7 @@
 		var zoff = 0;
 		var inc = 0.05;
 		var amplitude = 30 + (Math.random() * 70);
-		var renderDistance = 10;
+		var renderDistance = 5;
 		var chunkSize = 10;
 		camera.position.x = renderDistance * chunkSize / 2 * 5;
 		camera.position.z = renderDistance * chunkSize / 2 * 5;
@@ -276,7 +276,9 @@
 				}
 			}
 
-			if(camera.position.z <= lowestZBlock() + 20){ // 20 is 4 blocks
+			var worldSize = chunkSize * renderDistance * 5;
+			var ratio = 0.4;
+			if(camera.position.z <= lowestZBlock() + (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -329,7 +331,7 @@
 				scene.add(instancedChunk);
 			}
 
-			if(camera.position.z >= highestZBlock() - 20){ // 20 is 4 blocks
+			if(camera.position.z >= highestZBlock() - (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -380,7 +382,7 @@
 				scene.add(instancedChunk);		
 			}
 
-			if(camera.position.x >= highestXBlock() - 20){ // 20 is 4 blocks
+			if(camera.position.x >= highestXBlock() - (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -430,7 +432,7 @@
 				scene.add(instancedChunk);				
 			}
 
-			if(camera.position.x <= lowestXBlock() + 20){ // 20 is 4 blocks
+			if(camera.position.x <= lowestXBlock() + (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -527,7 +529,92 @@
 			camera.updateProjectionMatrix();
 		});
 
+		const raycaster = new THREE.Raycaster();
+		const pointer = new THREE.Vector2();
+		pointer.x = (0.5) * 2 - 1;
+		pointer.y = -1 * (0.5) * 2 + 1;
+
+		var plane;
 		function render(){
+			raycaster.setFromCamera(pointer, camera);
+			var intersection = raycaster.intersectObject(instancedChunk);
+			if(intersection[0] != undefined && intersection[0].distance < 40){
+				//console.log(intersection[0]);
+				if(!scene.children.includes(plane)){
+					var planeG = new THREE.PlaneGeometry(5, 5);
+					var planeM = new THREE.MeshBasicMaterial({color : 0xffffff, side : THREE.DoubleSide});
+					planeM.transparent = true;
+					planeM.opacity = 0.5;
+					plane = new THREE.Mesh(planeG, planeM);
+					scene.add(plane);
+				} else {
+					plane.visible = true;
+					var materialIndex = intersection[0].face.materialIndex;
+					var position = intersection[0].point; // object with x, y and z coords
+					var x = 0;
+					var y = 0;
+					var z = 0;
+					const inc = 0.1; 
+					switch(materialIndex){
+						case 0: // right
+							plane.rotation.x = 0;
+							plane.rotation.y = (Math.PI / 2);
+							plane.rotation.z = 0;
+							x = position.x + inc;
+							y = Math.round(position.y / 5) * 5;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 1: // left
+							plane.rotation.x = 0;
+							plane.rotation.y = (Math.PI / 2);
+							plane.rotation.z = 0;
+							x = position.x - inc;
+							y = Math.round(position.y / 5) * 5;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 2: // top
+							plane.rotation.x = (Math.PI / 2);
+							plane.rotation.y = 0;
+							plane.rotation.z = 0;
+							x = Math.round(position.x / 5) * 5;
+							y = position.y + inc;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 3: // bottom
+							plane.rotation.x = (Math.PI / 2);
+							plane.rotation.y = 0;
+							plane.rotation.z = 0;
+							x = Math.round(position.x / 5) * 5;
+							y = position.y - inc;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 4: // front
+							plane.rotation.x = 0;
+							plane.rotation.y = 0;
+							plane.rotation.z = 0;
+							x = Math.round(position.x / 5) * 5;
+							y = Math.round(position.y / 5) * 5;
+							z = position.z + inc;
+							break;
+						case 5: // back
+							plane.rotation.x = 0;
+							plane.rotation.y = 0;
+							plane.rotation.z = 0;
+							x = Math.round(position.x / 5) * 5;
+							y = Math.round(position.y / 5) * 5;
+							z = position.z - inc;
+							break;
+					}
+					plane.position.x = x;
+					plane.position.y = y;
+					plane.position.z = z;
+				}
+			} else {
+				if(plane){
+					plane.visible = false;
+				}
+			}
+
 			renderer.render(scene, camera);
 		}
 
