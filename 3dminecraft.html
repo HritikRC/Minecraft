@@ -1,3 +1,10 @@
+<!--
+	Added controlsOptions variable around line 162
+	Added placedBlock variable to line 172
+	Added identifyChunks ability to around line 181
+	Added placing blocks ability to around line 204
+	Added code in the infinite rendering part of the code
+-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,16 +13,9 @@
 		body {
 			margin : 0;
 		}
-		#autojumpbutton {
-			position : absolute;
-			left : 20px;
-			top : 20px;
-		}
 	</style>
 </head>
 <body>
-
-	<button id = "autojumpbutton" onclick = "toggleAutoJump()"><h2>AutoJump : On</h2></button>
 
 	<script src = "three.js"></script>
 	<script src = "perlin.js"></script>
@@ -62,17 +62,6 @@
 		scene.add(line);
 		line.position.y = -5;
 		*/
-
-		var autoJump = true;
-		function toggleAutoJump(){
-			if(autoJump == true){
-				autoJump = false;
-				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : Off</h2>";
-			} else {
-				autoJump = true;
-				document.getElementById("autojumpbutton").innerHTML = "<h2>AutoJump : On</h2>";
-			}
-		}
 
 		var faces = [
 			{ // left
@@ -171,11 +160,114 @@
 
 		var keys = [];
 		var canJump = true;
+		var controlOptions = {
+			forward : "w",
+			backward : "s",
+			right : "d",
+			left : "a",
+			jump : " ", // " " = space
+			placeBlock : "q" 
+		};
+
+		var placedBlocks = [];
+		var chunkMap = [];
+		for(var x = 0; x < renderDistance; x++){
+			for(var z = 0; z < renderDistance; z++){
+				chunkMap.push({x : x, z : z});
+			}
+		}
+
+		function identifyChunk(x, z){
+			var lowestX = lowestXBlock();
+			var lowestZ = lowestZBlock();
+			var difX = x - lowestX;
+			var difZ = z - lowestZ;
+			var divX = Math.floor(difX / (chunkSize * 5));
+			var divZ = Math.floor(difZ / (chunkSize * 5));
+			var index = undefined;
+			for(var i = 0; i < chunkMap.length; i++){
+				if(chunkMap[i].x == divX && chunkMap[i].z == divZ){
+					index = i;
+					break;
+				}
+			}
+			return index; // Identified the chunks!!!
+		}
+
 		document.addEventListener("keydown", function(e){
 			keys.push(e.key);
-			if(e.key == " " && canJump == true){
-				ySpeed = -1.3;
+			if(e.key == controlOptions.jump && canJump == true){
+				ySpeed = -0.9;
 				canJump = false;
+			}
+			if(e.key == controlOptions.placeBlock){
+				const raycaster = new THREE.Raycaster();
+				const pointer = new THREE.Vector2();
+				pointer.x = (0.5) * 2 - 1;
+				pointer.y = -1 * (0.5) * 2 + 1;
+				raycaster.setFromCamera(pointer, camera);
+				var intersection = raycaster.intersectObject(instancedChunk);
+				console.log(intersection[0]);
+
+				if(intersection[0] != undefined && intersection[0].distance < 40){
+					var materialIndex = intersection[0].face.materialIndex;
+					var position = intersection[0].point; // object with x, y and z coords
+					var x = 0;
+					var y = 0;
+					var z = 0;
+					const inc = 2.5; 
+					switch(materialIndex){
+						case 0: // right
+							x = position.x + inc;
+							y = Math.round(position.y / 5) * 5;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 1: // left
+							x = position.x - inc;
+							y = Math.round(position.y / 5) * 5;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 2: // top
+							x = Math.round(position.x / 5) * 5;
+							y = position.y + inc;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 3: // bottom
+							x = Math.round(position.x / 5) * 5;
+							y = position.y - inc;
+							z = Math.round(position.z / 5) * 5;
+							break;
+						case 4: // front
+							x = Math.round(position.x / 5) * 5;
+							y = Math.round(position.y / 5) * 5;
+							z = position.z + inc;
+							break;
+						case 5: // back
+							x = Math.round(position.x / 5) * 5;
+							y = Math.round(position.y / 5) * 5;
+							z = position.z - inc;
+							break;
+					}
+					chunks[identifyChunk(x, z)].push(new Block(x, y, z));
+					placedBlocks.push({x : x, y : y, z : z});
+
+					scene.remove(instancedChunk);
+
+					instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+					var count = 0;
+					for(var i = 0; i < chunks.length; i++){
+						for(var j = 0; j < chunks[i].length; j++){
+							let matrix = new THREE.Matrix4().makeTranslation(
+								chunks[i][j].x,
+								chunks[i][j].y,
+								chunks[i][j].z
+							);
+							instancedChunk.setMatrixAt(count, matrix);
+							count++;
+						}
+					}
+					scene.add(instancedChunk);		
+				}
 			}
 		});
 		document.addEventListener("keyup", function(e){
@@ -201,65 +293,57 @@
 
 		var movingSpeed = 0.7;
 		var ySpeed = 0;
-		var acc = 0.08;
-		function update(){
-			if(keys.includes("w")){
+		var acc = 0.065;
+		function update(){	
+			if(keys.includes(controlOptions.forward)){
 				controls.moveForward(movingSpeed);
-				if(autoJump == false){
-					for(var i = 0; i < chunks.length; i++){
-						for(var j = 0; j < chunks[i].length; j++){
-							if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-								if(camera.position.y == chunks[i][j].y - 2.5){
-									controls.moveForward(-1 * movingSpeed);
-								}
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
+							if(camera.position.y == chunks[i][j].y - 2.5){
+								controls.moveForward(-1 * movingSpeed);
 							}
 						}
 					}
 				}
 			}
-			if(keys.includes("a")){
+			if(keys.includes(controlOptions.left)){
 				controls.moveRight(-1 * movingSpeed);
-				if(autoJump == false){
-					for(var i = 0; i < chunks.length; i++){
-						for(var j = 0; j < chunks[i].length; j++){
-							if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-								if(camera.position.y == chunks[i][j].y - 2.5){
-									controls.moveRight(movingSpeed);
-								}
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
+							if(camera.position.y == chunks[i][j].y - 2.5){
+								controls.moveRight(movingSpeed);
 							}
 						}
 					}
 				}
 			}
-			if(keys.includes("s")){
+			if(keys.includes(controlOptions.backward)){
 				controls.moveForward(-1 * movingSpeed);
-				if(autoJump == false){
-					for(var i = 0; i < chunks.length; i++){
-						for(var j = 0; j < chunks[i].length; j++){
-							if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-								if(camera.position.y == chunks[i][j].y - 2.5){
-									controls.moveForward(movingSpeed);
-								}
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
+							if(camera.position.y == chunks[i][j].y - 2.5){
+								controls.moveForward(movingSpeed);
 							}
 						}
 					}
 				}
 			}
-			if(keys.includes("d")){
+			if(keys.includes(controlOptions.right)){
 				controls.moveRight(movingSpeed);
-				if(autoJump == false){
-					for(var i = 0; i < chunks.length; i++){
-						for(var j = 0; j < chunks[i].length; j++){
-							if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-								if(camera.position.y == chunks[i][j].y - 2.5){
-									controls.moveRight(-1 * movingSpeed);
-								}
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
+							if(camera.position.y == chunks[i][j].y - 2.5){
+								controls.moveRight(-1 * movingSpeed);
 							}
 						}
 					}
 				}
 			}
-
+			
 			camera.position.y = camera.position.y - ySpeed;
 			ySpeed = ySpeed + acc;
 
@@ -278,7 +362,7 @@
 
 			var worldSize = chunkSize * renderDistance * 5;
 			var ratio = 0.4;
-			if(camera.position.z <= lowestZBlock() + (worldSize * ratio)){ // 20 is 4 blocks
+			if(camera.position.z < lowestZBlock() + (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -305,6 +389,12 @@
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
 							chunk.push(new Block(x, v, z));
+							// Check if there is also a placed block there
+							for(var b = 0; b < placedBlocks.length; b++){
+								if(placedBlocks[b].x == x && placedBlocks[b].z == z){
+									chunk.push(new Block(placedBlocks[b].x, placedBlocks[b].y, placedBlocks[b].z));
+								}
+							}
 						}
 					}
 					newChunks.splice(i * renderDistance, 0, chunk);
@@ -312,10 +402,9 @@
 
 				chunks = newChunks;
 
-
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -331,7 +420,7 @@
 				scene.add(instancedChunk);
 			}
 
-			if(camera.position.z >= highestZBlock() - (worldSize * ratio)){ // 20 is 4 blocks
+			if(camera.position.z > highestZBlock() - (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -357,6 +446,12 @@
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
 							chunk.push(new Block(x, v, z));
+							// Check if there is also a placed block there
+							for(var b = 0; b < placedBlocks.length; b++){
+								if(placedBlocks[b].x == x && placedBlocks[b].z == z){
+									chunk.push(new Block(placedBlocks[b].x, placedBlocks[b].y, placedBlocks[b].z));
+								}
+							}
 						}
 					}
 					newChunks.splice(((i + 1) * renderDistance) - 1, 0, chunk);
@@ -366,7 +461,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -382,7 +477,7 @@
 				scene.add(instancedChunk);		
 			}
 
-			if(camera.position.x >= highestXBlock() - (worldSize * ratio)){ // 20 is 4 blocks
+			if(camera.position.x > highestXBlock() - (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -407,6 +502,12 @@
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
 							chunk.push(new Block(x, v, z));
+							// Check if there is also a placed block there
+							for(var b = 0; b < placedBlocks.length; b++){
+								if(placedBlocks[b].x == x && placedBlocks[b].z == z){
+									chunk.push(new Block(placedBlocks[b].x, placedBlocks[b].y, placedBlocks[b].z));
+								}
+							}
 						}
 					}
 					newChunks.splice(chunks.length - (renderDistance - i), 0, chunk);
@@ -416,7 +517,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -432,7 +533,7 @@
 				scene.add(instancedChunk);				
 			}
 
-			if(camera.position.x <= lowestXBlock() + (worldSize * ratio)){ // 20 is 4 blocks
+			if(camera.position.x < lowestXBlock() + (worldSize * ratio)){ // 20 is 4 blocks
 				/*
 					
 					[0], [3], [6],
@@ -456,6 +557,12 @@
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
 							chunk.push(new Block(x, v, z));
+							// Check if there is also a placed block there
+							for(var b = 0; b < placedBlocks.length; b++){
+								if(placedBlocks[b].x == x && placedBlocks[b].z == z){
+									chunk.push(new Block(placedBlocks[b].x, placedBlocks[b].y, placedBlocks[b].z));
+								}
+							}
 						}
 					}
 					newChunks.splice(i, 0, chunk);
@@ -465,7 +572,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
