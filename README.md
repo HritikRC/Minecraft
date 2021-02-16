@@ -1,6 +1,8 @@
 # Minecraft
 All the files for the YouTube 3d Minecraft tutorial are located here!
 
+NOTE! IF YOU WISH TO USE THIS PROGRAM FOR COMMERCIAL USE, YOU MUST ADVERTISE OR CREDIT ME :) <- Rules!
+
 Hey! You can download the latest code from the series from here. 
 Download the whole repository as a zip or just as a folder. 
 If you download it as a ZIP, you will need to extract it.
