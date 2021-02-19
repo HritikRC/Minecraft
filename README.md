@@ -12,6 +12,7 @@ Oh and make sure to open the minecraft.html file as a server!
 If you have any questions, please ask either here or in youtube.
 
 Find me in youtube at Hritik RC (https://www.youtube.com/channel/UCcGIeUrE5IpTHk9S2R_l0uQ?view_as=subscriber)
+
 Playlist for the minecraft series: https://www.youtube.com/watch?v=lk8xQf2XA70&list=PLEtXCX1lakbihCjD8Dze3lCMRwJBdu58q
 
 Thanks for the support! :)
