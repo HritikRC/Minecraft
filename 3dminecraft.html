@@ -188,10 +188,21 @@
 			return index; // Identified the chunks!!!
 		}
 
+		var start = 0;
+		var sprint = false;
 		document.addEventListener("keydown", function(e){
+			if(e.key == "w") {
+		        var elapsed = new Date().getTime();
+		        if(elapsed - start <= 300){
+		        	sprint = true;
+		        }
+		        start = elapsed;
+		    }
+
 			keys.push(e.key);
+
 			if(e.key == controlOptions.jump && canJump == true){
-				ySpeed = -0.9;
+				ySpeed = -1;
 				canJump = false;
 			}
 			if(e.key == controlOptions.placeBlock){
@@ -242,25 +253,29 @@
 							z = position.z - inc;
 							break;
 					}
-					chunks[identifyChunk(x, z)].push(new Block(x, y, z, true));
-					placedBlocks.push({x : x, y : y, z : z});
+					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
+					var b = {x : x, y : y, z : z};
+					if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
+						chunks[identifyChunk(x, z)].push(new Block(x, y, z, true));
+						placedBlocks.push(b);
 
-					scene.remove(instancedChunk);
+						scene.remove(instancedChunk);
 
-					instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
-					var count = 0;
-					for(var i = 0; i < chunks.length; i++){
-						for(var j = 0; j < chunks[i].length; j++){
-							let matrix = new THREE.Matrix4().makeTranslation(
-								chunks[i][j].x,
-								chunks[i][j].y,
-								chunks[i][j].z
-							);
-							instancedChunk.setMatrixAt(count, matrix);
-							count++;
+						instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+						var count = 0;
+						for(var i = 0; i < chunks.length; i++){
+							for(var j = 0; j < chunks[i].length; j++){
+								let matrix = new THREE.Matrix4().makeTranslation(
+									chunks[i][j].x,
+									chunks[i][j].y,
+									chunks[i][j].z
+								);
+								instancedChunk.setMatrixAt(count, matrix);
+								count++;
+							}
 						}
-					}
-					scene.add(instancedChunk);		
+						scene.add(instancedChunk);
+					}		
 				}
 			}
 		});
@@ -272,6 +287,9 @@
 				}
 			}
 			keys = newArr;
+			if(!keys.includes("w")){
+				sprint = false;
+			}
 		});
 
 		var controls = new THREE.PointerLockControls(camera, document.body);
@@ -332,6 +350,7 @@
 					// More efficient by finding it inside it's chunk
 					var index1 = identifyChunk(x, z);
 					var chunk = chunks[index1];
+					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
 					for(var i = 0; i < chunk.length; i++){
 						if(chunk[i].x == x && chunk[i].y == y && chunk[i].z == z){
 							// Found the block!
@@ -373,74 +392,177 @@
 
 		});
 		controls.addEventListener("unlock", function(){
-
+			keys = [];
 		});
 
 		var movingSpeed = 0.7;
 		var ySpeed = 0;
 		var acc = 0.065;
-		function update(){	
-			if(keys.includes(controlOptions.forward)){
-				controls.moveForward(movingSpeed);
-				for(var i = 0; i < chunks.length; i++){
-					for(var j = 0; j < chunks[i].length; j++){
-						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-							if(camera.position.y == chunks[i][j].y - 2.5){
-								controls.moveForward(-1 * movingSpeed);
-							}
-						}
-					}
-				}
+
+		var player = {
+			w : 0.6, // width
+			h : 8, // height
+			d : 0.5, // depth
+			x : camera.position.x,
+			y : camera.position.y,
+			z : camera.position.z,
+			forward : function(speed){
+				controls.moveForward(speed);
+				this.updatePosition();
+			},
+			backward : function(speed){
+				controls.moveForward(-1 * speed);
+				this.updatePosition();
+			},
+			right : function(speed){
+				controls.moveRight(speed);
+				this.updatePosition();
+			},
+			left : function(speed){
+				controls.moveRight(-1 * speed);
+				this.updatePosition();
+			},
+			updatePosition : function(){
+				this.x = camera.position.x;
+				this.y = camera.position.y - (this.h / 2);
+				this.z = camera.position.z;
 			}
-			if(keys.includes(controlOptions.left)){
-				controls.moveRight(-1 * movingSpeed);
+		};
+
+		function intersect(x1, y1, z1, w1, h1, d1, x2, y2, z2, w2, h2, d2){
+			var a = {
+				minX : x1 - (w1/2),
+				maxX : x1 + (w1/2),
+				minZ : z1 - (d1/2),
+				maxZ : z1 + (d1/2),
+				minY : y1 - (h1/2),
+				maxY : y1 + (h1/2),
+			};
+			var b = {
+				minX : x2 - (w2/2),
+				maxX : x2 + (w2/2),
+				minZ : z2 - (d2/2),
+				maxZ : z2 + (d2/2),
+				minY : y2 - (h2/2),
+				maxY : y2 + (h2/2),
+			};
+			return (a.minX <= b.maxX && a.maxX >= b.minX) &&
+		           (a.minY <= b.maxY && a.maxY >= b.minY) &&
+		           (a.minZ <= b.maxZ && a.maxZ >= b.minZ);
+		}
+
+		var deceleration = 1.15;
+		var forback = 0; // 1 = forward, -1 = backward
+		var rightleft = 0; // 1 = right, -1 = left
+		var sprintSpeedInc = 1.3; // 30% faster than walking
+		function update(){	
+			player.updatePosition();
+
+			if(keys.includes(controlOptions.forward)){
+				player.forward(movingSpeed * (sprint ? sprintSpeedInc : 1));
+				forback = 1 * movingSpeed;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-							if(camera.position.y == chunks[i][j].y - 2.5){
-								controls.moveRight(movingSpeed);
-							}
+						var b = chunks[i][j];
+						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+							player.backward((movingSpeed * (sprint ? sprintSpeedInc : 1)));
+							forback = 0;
+							rightleft = 0;
+							sprint = false;
 						}
 					}
 				}
 			}
 			if(keys.includes(controlOptions.backward)){
-				controls.moveForward(-1 * movingSpeed);
+				player.backward(movingSpeed * (sprint ? sprintSpeedInc : 1));
+				forback = -1 * movingSpeed;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-							if(camera.position.y == chunks[i][j].y - 2.5){
-								controls.moveForward(movingSpeed);
-							}
+						var b = chunks[i][j];
+						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+							player.forward(movingSpeed * (sprint ? sprintSpeedInc : 1));
+							forback = 0;
+							rightleft = 0;
+							sprint = false;
 						}
 					}
 				}
 			}
 			if(keys.includes(controlOptions.right)){
-				controls.moveRight(movingSpeed);
+				player.right(movingSpeed * (sprint ? sprintSpeedInc : 1));
+				rightleft = 1 * movingSpeed;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
-						if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-							if(camera.position.y == chunks[i][j].y - 2.5){
-								controls.moveRight(-1 * movingSpeed);
-							}
+						var b = chunks[i][j];
+						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+							player.left(movingSpeed * (sprint ? sprintSpeedInc : 1));
+							forback = 0;
+							rightleft = 0;
+							sprint = false;
 						}
 					}
 				}
+			}
+			if(keys.includes(controlOptions.left)){
+				player.left(movingSpeed * (sprint ? sprintSpeedInc : 1));
+				rightleft = -1 * movingSpeed;
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						var b = chunks[i][j];
+						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+							player.right(movingSpeed * (sprint ? sprintSpeedInc : 1));
+							forback = 0;
+							rightleft = 0;
+							sprint = false;
+						}
+					}
+				}
+			}
+
+			// Decceleration part
+			if(!keys.includes(controlOptions.forward) && !keys.includes(controlOptions.backward) && !keys.includes(controlOptions.right) && !keys.includes(controlOptions.left)){
+				forback /= deceleration;
+				rightleft /= deceleration;
+				for(var i = 0; i < chunks.length; i++){
+					for(var j = 0; j < chunks[i].length; j++){
+						var b = chunks[i][j];
+						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+							var br = true;
+							forback /= -deceleration;
+							rightleft /= -deceleration;
+							sprint = false;
+							break;
+						}
+					}
+					if(br){
+						break;
+					}
+				}
+				player.forward(forback * (sprint ? sprintSpeedInc : 1));
+				player.right(rightleft * (sprint ? sprintSpeedInc : 1));
 			}
 			
 			camera.position.y = camera.position.y - ySpeed;
 			ySpeed = ySpeed + acc;
 
+			// Not falling through a block or above a block (above collision)
 			for(var i = 0; i < chunks.length; i++){
 				for(var j = 0; j < chunks[i].length; j++){
-					if(camera.position.x <= chunks[i][j].x + 2.5 && camera.position.x >= chunks[i][j].x - 2.5 && camera.position.z <= chunks[i][j].z + 2.5 && camera.position.z >= chunks[i][j].z - 2.5){
-						if(camera.position.y <= chunks[i][j].y + 10 && camera.position.y >= chunks[i][j].y){
-							camera.position.y = chunks[i][j].y + 10;
-							ySpeed = 0;
-							canJump = true;
-							break;
-						}
+					var b = chunks[i][j];
+					var c = intersect(b.x, b.y + 10, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
+					if(c && camera.position.y <= chunks[i][j].y + 2.5 + player.h && camera.position.y >= chunks[i][j].y){
+						camera.position.y = chunks[i][j].y + 2.5 + player.h;
+						ySpeed = 0;
+						canJump = true;
+					}
+					var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d); // this one doesn't have a + 10 in the b.y
+					if(c && camera.position.y >= chunks[i][j].y - 2.5 && camera.position.y <= chunks[i][j].y){
+						ySpeed = 0.5;
 					}
 				}
 			}
