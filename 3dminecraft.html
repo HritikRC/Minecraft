@@ -125,8 +125,10 @@
 			new THREE.MeshBasicMaterial({map : loader.load("texture/side3.jpg")}),
 		];
 
+		var depth = 5; // keeps track of the depth of the world (in terms of blocks)
+		var minWorldY = -250; // the minimum y coordinate of a block
 		var blockBox = new THREE.BoxGeometry(5, 5, 5)
-		var instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize);
+		var instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize * depth);
 		var count = 0;
 		for(var i = 0; i < renderDistance; i++){
 			for(j = 0; j < renderDistance; j++){
@@ -136,14 +138,19 @@
 						xoff = inc * x;
 						zoff = inc * z;
 						var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-						chunk.push(new Block(x * 5, v, z * 5));
-						let matrix = new THREE.Matrix4().makeTranslation(
-							x * 5,
-							v,
-							z * 5
-						);
-						instancedChunk.setMatrixAt(count, matrix);
-						count++;
+						for(var d = 0; d < depth; d++){
+							if(v - (d * 5) < minWorldY){
+								continue;
+							}
+							chunk.push(new Block(x * 5, v - (d * 5), z * 5));
+							let matrix = new THREE.Matrix4().makeTranslation(
+								x * 5,
+								v - (d * 5),
+								z * 5
+							);
+							instancedChunk.setMatrixAt(count, matrix);
+							count++;
+						}
 					}
 				}
 				chunks.push(chunk);
@@ -254,28 +261,30 @@
 							break;
 					}
 					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
-					var b = {x : x, y : y, z : z};
-					if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
-						chunks[identifyChunk(x, z)].push(new Block(x, y, z, true));
-						placedBlocks.push(b);
+					if(y > minWorldY){
+						var b = {x : x, y : y, z : z};
+						if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
+							chunks[identifyChunk(x, z)].push(new Block(x, y, z, true));
+							placedBlocks.push(b);
 
-						scene.remove(instancedChunk);
+							scene.remove(instancedChunk);
 
-						instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
-						var count = 0;
-						for(var i = 0; i < chunks.length; i++){
-							for(var j = 0; j < chunks[i].length; j++){
-								let matrix = new THREE.Matrix4().makeTranslation(
-									chunks[i][j].x,
-									chunks[i][j].y,
-									chunks[i][j].z
-								);
-								instancedChunk.setMatrixAt(count, matrix);
-								count++;
+							instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+							var count = 0;
+							for(var i = 0; i < chunks.length; i++){
+								for(var j = 0; j < chunks[i].length; j++){
+									let matrix = new THREE.Matrix4().makeTranslation(
+										chunks[i][j].x,
+										chunks[i][j].y,
+										chunks[i][j].z
+									);
+									instancedChunk.setMatrixAt(count, matrix);
+									count++;
+								}
 							}
-						}
-						scene.add(instancedChunk);
-					}		
+							scene.add(instancedChunk);
+						}	
+					}	
 				}
 			}
 		});
@@ -371,7 +380,7 @@
 					}
 					// update chunks, array.splice(index, 1);
 					scene.remove(instancedChunk);
-					instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+					instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
 					var count = 0;
 					for(var i = 0; i < chunks.length; i++){
 						for(var j = 0; j < chunks[i].length; j++){
@@ -596,16 +605,21 @@
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							// Try to find a broken block in that position
-							var blockIsDestroyed = false;
-							for(var d = 0; d < brokenBlocks.length; d++){
-								if(brokenBlocks[d].x == x && brokenBlocks[d].y == v && brokenBlocks[d].z == z){
-									blockIsDestroyed = true;
-									break;
+							for(var e = 0; e < depth; e++){
+								if(v - (e * 5) < minWorldY){
+									continue;
 								}
-							}
-							if(!blockIsDestroyed){
-								chunk.push(new Block(x, v, z));
+								// Try to find a broken block in that position
+								var blockIsDestroyed = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v - (e * 5) && brokenBlocks[d].z == z){
+										blockIsDestroyed = true;
+										break;
+									}
+								}
+								if(!blockIsDestroyed){
+									chunk.push(new Block(x, v - (e * 5), z));
+								}
 							}
 							// Check if there is also a placed block there
 							for(var b = 0; b < placedBlocks.length; b++){
@@ -622,7 +636,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -663,16 +677,21 @@
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							// Try to find a broken block in that position
-							var blockIsDestroyed = false;
-							for(var d = 0; d < brokenBlocks.length; d++){
-								if(brokenBlocks[d].x == x && brokenBlocks[d].y == v && brokenBlocks[d].z == z){
-									blockIsDestroyed = true;
-									break;
+							for(var e = 0; e < depth; e++){
+								if(v - (e * 5) < minWorldY){
+									continue;
 								}
-							}
-							if(!blockIsDestroyed){
-								chunk.push(new Block(x, v, z));
+								// Try to find a broken block in that position
+								var blockIsDestroyed = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v - (e * 5) && brokenBlocks[d].z == z){
+										blockIsDestroyed = true;
+										break;
+									}
+								}
+								if(!blockIsDestroyed){
+									chunk.push(new Block(x, v - (e * 5), z));
+								}
 							}
 							// Check if there is also a placed block there
 							for(var b = 0; b < placedBlocks.length; b++){
@@ -689,7 +708,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -729,16 +748,21 @@
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							// Try to find a broken block in that position
-							var blockIsDestroyed = false;
-							for(var d = 0; d < brokenBlocks.length; d++){
-								if(brokenBlocks[d].x == x && brokenBlocks[d].y == v && brokenBlocks[d].z == z){
-									blockIsDestroyed = true;
-									break;
+							for(var e = 0; e < depth; e++){
+								if(v - (e * 5) < minWorldY){
+									continue;
 								}
-							}
-							if(!blockIsDestroyed){
-								chunk.push(new Block(x, v, z));
+								// Try to find a broken block in that position
+								var blockIsDestroyed = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v - (e * 5) && brokenBlocks[d].z == z){
+										blockIsDestroyed = true;
+										break;
+									}
+								}
+								if(!blockIsDestroyed){
+									chunk.push(new Block(x, v - (e * 5), z));
+								}
 							}
 							// Check if there is also a placed block there
 							for(var b = 0; b < placedBlocks.length; b++){
@@ -755,7 +779,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
@@ -794,16 +818,21 @@
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							// Try to find a broken block in that position
-							var blockIsDestroyed = false;
-							for(var d = 0; d < brokenBlocks.length; d++){
-								if(brokenBlocks[d].x == x && brokenBlocks[d].y == v && brokenBlocks[d].z == z){
-									blockIsDestroyed = true;
-									break;
+							for(var e = 0; e < depth; e++){
+								if(v - (e * 5) < minWorldY){
+									continue;
 								}
-							}
-							if(!blockIsDestroyed){
-								chunk.push(new Block(x, v, z));
+								// Try to find a broken block in that position
+								var blockIsDestroyed = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v - (e * 5) && brokenBlocks[d].z == z){
+										blockIsDestroyed = true;
+										break;
+									}
+								}
+								if(!blockIsDestroyed){
+									chunk.push(new Block(x, v - (e * 5), z));
+								}
 							}
 							// Check if there is also a placed block there
 							for(var b = 0; b < placedBlocks.length; b++){
@@ -820,7 +849,7 @@
 
 				scene.remove(instancedChunk);
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize) + placedBlocks.length);
+				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
 				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
