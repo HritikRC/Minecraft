@@ -1,5 +1,5 @@
 /*
- * A speed-improved perlin and simplex noise algorithms for 2D.
+ * A speed-improved perlin and simplex noise algorithms for 2D. 
  *
  * Based on example code by Stefan Gustavson (stegu@itn.liu.se).
  * Optimisations by Peter Eastman (peastman@drizzle.stanford.edu).
