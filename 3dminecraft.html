@@ -99,21 +99,6 @@
 			this.blockType = blockType;
 		}
 
-		var blocks = {
-			grass : {
-				color : new THREE.Color("rgb(0, 200, 0)"),
-				name : "grass",
-			}, 
-			dirt : {
-				color : new THREE.Color("rgb(115, 90, 53)"),
-				name : "dirt",
-			},
-			cobblestone : {
-				color : new THREE.Color("rgb(90, 90, 90)"),
-				name : "cobblestone"
-			}
-		};
-
 		// var axesHelper = new THREE.AxesHelper( 5 );
 		// scene.add( axesHelper );
 
@@ -141,11 +126,15 @@
 		var amplitude = 30 + (Math.random() * 70);
 		var renderDistance = 5;
 		var chunkSize = 10;
+		var depth = 5; // keeps track of the depth of the world (in terms of blocks)
+		var minWorldY = -250; // the minimum y coordinate of a block
 		camera.position.x = renderDistance * chunkSize / 2 * 5;
 		camera.position.z = renderDistance * chunkSize / 2 * 5;
 		camera.position.y = 50;
 
 		var loader = new THREE.TextureLoader();
+		
+		/*
 		var materialArray = [
 			new THREE.MeshBasicMaterial({map : loader.load("texture/texture.png")}),
 			new THREE.MeshBasicMaterial({map : loader.load("texture/texture.png")}),
@@ -154,12 +143,40 @@
 			new THREE.MeshBasicMaterial({map : loader.load("texture/texture.png")}),
 			new THREE.MeshBasicMaterial({map : loader.load("texture/texture.png")}),
 		];
+		*/
 
-		var depth = 5; // keeps track of the depth of the world (in terms of blocks)
-		var minWorldY = -250; // the minimum y coordinate of a block
-		var blockBox = new THREE.BoxGeometry(5, 5, 5)
-		var instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, renderDistance * renderDistance * chunkSize * chunkSize * depth);
-		var count = 0;
+		var blockBox = new THREE.BoxGeometry(5, 5, 5);
+		var grassTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/side.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/side.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/top.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/bottom.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/side.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/grass/side.jpg")})
+		];
+		var dirtTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/dirt/dirt.png")})
+		];
+		var cobblestoneTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")})
+		];
+		var blocks = [
+			{name : "grass", materialArray : grassTexture, mesh : new THREE.InstancedMesh(blockBox, grassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0]},
+			{name : "dirt", materialArray : dirtTexture, mesh : new THREE.InstancedMesh(blockBox, dirtTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [1, 2]},
+			{name : "cobblestone", materialArray : cobblestoneTexture, mesh : new THREE.InstancedMesh(blockBox, cobblestoneTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [3, 4]},
+		];
+		var blockTypes = ["grass", "dirt", "cobblestone"];
+
 		for(var i = 0; i < renderDistance; i++){
 			for(j = 0; j < renderDistance; j++){
 				var chunk = [];
@@ -177,22 +194,13 @@
 								v - (d * 5),
 								z * 5
 							);
-							instancedChunk.setMatrixAt(count, matrix);
-							var color = null;
-							var blockType = null;
-							if(d == 0){
-								color = blocks.grass.color;
-								blockType = blocks.grass.name;
-							} else if(d == 1 || d == 2 || d == 3){
-								color = blocks.dirt.color;
-								blockType = blocks.dirt.name;
-							} else if(d > 3){
-								color = blocks.cobblestone.color;
-								blockType = blocks.cobblestone.name;
+							for(var b = 0; b < blocks.length; b++){
+								if(blocks[b].range.includes(d)){
+									blocks[b].mesh.setMatrixAt(blocks[b].count, matrix);
+									blocks[b].count++;
+									chunk.push(new Block(x * 5, v - (d * 5), z * 5 , false, blocks[b].name));
+								}
 							}
-							instancedChunk.setColorAt(count, color);
-							count++;
-							chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blockType));
 						}
 					}
 				}
@@ -200,7 +208,9 @@
 			}
 		}
 
-		scene.add(instancedChunk);
+		for(var i = 0; i < blocks.length; i++){
+			scene.add(blocks[i].mesh)
+		}
 
 		var keys = [];
 		var canJump = true;
@@ -261,9 +271,19 @@
 				pointer.x = (0.5) * 2 - 1;
 				pointer.y = -1 * (0.5) * 2 + 1;
 				raycaster.setFromCamera(pointer, camera);
-				var intersection = raycaster.intersectObject(instancedChunk);
+				var intersection;
+				var next = false;
+				var distance = Infinity;
+				for(var i = 0; i < blocks.length; i++){
+					var int = raycaster.intersectObject(blocks[i].mesh);
+					if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+						next = true;
+						intersection = int;
+						distance = int[0].distance;
+					}
+				}
 
-				if(intersection[0] != undefined && intersection[0].distance < 40){
+				if(next){
 					console.log(intersection[0]);
 					var materialIndex = intersection[0].face.materialIndex;
 					var position = intersection[0].point; // object with x, y and z coords
@@ -308,13 +328,14 @@
 						var blockToBePlaced = "cobblestone";
 						var b = new Block(x, y, z, true, blockToBePlaced);
 						if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
-							chunks[identifyChunk(x, z)].push(new Block(x, y, z, true, blockToBePlaced));
+							chunks[identifyChunk(x, z)].push(b);
 							placedBlocks.push(b);
 
-							scene.remove(instancedChunk);
+							var index = blockTypes.indexOf(blockToBePlaced);
+							scene.remove(blocks[index].mesh);
+							blocks[index].mesh = new THREE.InstancedMesh(blockBox, blocks[index].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+							blocks[index].count = 0;
 
-							instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-							var count = 0;
 							for(var i = 0; i < chunks.length; i++){
 								for(var j = 0; j < chunks[i].length; j++){
 									let matrix = new THREE.Matrix4().makeTranslation(
@@ -322,20 +343,13 @@
 										chunks[i][j].y,
 										chunks[i][j].z
 									);
-									instancedChunk.setMatrixAt(count, matrix);
-									var color = null;
-									if(chunks[i][j].blockType == "grass"){
-										color = blocks.grass.color;
-									} else if(chunks[i][j].blockType == "dirt"){
-										color = blocks.dirt.color;
-									} else if(chunks[i][j].blockType == "cobblestone"){
-										color = blocks.cobblestone.color;
+									if(chunks[i][j].blockType == blockToBePlaced){
+										blocks[index].mesh.setMatrixAt(blocks[index].count, matrix);
+										blocks[index].count++;
 									}
-									instancedChunk.setColorAt(count, color);
-									count++;
 								}
 							}
-							scene.add(instancedChunk);
+							scene.add(blocks[index].mesh);
 						}	
 					}	
 				}
@@ -366,7 +380,17 @@
 				pointer.x = (0.5) * 2 - 1;
 				pointer.y = -1 * (0.5) * 2 + 1;
 				raycaster.setFromCamera(pointer, camera);
-				var intersection = raycaster.intersectObject(instancedChunk);
+				var intersection;
+				var next = false;
+				var distance = Infinity;
+				for(var i = 0; i < blocks.length; i++){
+					var int = raycaster.intersectObject(blocks[i].mesh);
+					if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+						next = true;
+						intersection = int;
+						distance = int[0].distance;
+					}
+				}
 				if(intersection[0] != undefined && intersection[0].distance < 40){
 					// finding x, y, z positions of that 
 					console.log(intersection[0].point);
@@ -413,6 +437,7 @@
 					var index1 = identifyChunk(x, z);
 					var chunk = chunks[index1];
 					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
+					var blockToBeDestroyed = null; // BLOCK WHICH WILL NOW BE DESTROYED!
 					for(var i = 0; i < chunk.length; i++){
 						if(chunk[i].x == x && chunk[i].y == y && chunk[i].z == z){
 							// Found the block!
@@ -427,14 +452,17 @@
 							} else { // if it is a normal block
 								brokenBlocks.push(new Block(x, y, z, false, chunk[i].blockType));
 							}
+							blockToBeDestroyed = chunk[i].blockType;
 							chunks[index1].splice(i, 1); // block is removed from chunks variable
 							break;
 						}
 					}
 					// update chunks, array.splice(index, 1);
-					scene.remove(instancedChunk);
-					instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-					var count = 0;
+					var index = blockTypes.indexOf(blockToBeDestroyed);
+					scene.remove(blocks[index].mesh);
+					blocks[index].mesh = new THREE.InstancedMesh(blockBox, blocks[index].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+					blocks[index].count = 0;
+
 					for(var i = 0; i < chunks.length; i++){
 						for(var j = 0; j < chunks[i].length; j++){
 							let matrix = new THREE.Matrix4().makeTranslation(
@@ -442,20 +470,13 @@
 								chunks[i][j].y,
 								chunks[i][j].z
 							);
-							instancedChunk.setMatrixAt(count, matrix);
-							var color;
-							if(chunks[i][j].blockType == "grass"){
-								color = blocks.grass.color;
-							} else if(chunks[i][j].blockType == "dirt"){
-								color = blocks.dirt.color;
-							} else if(chunks[i][j].blockType == "cobblestone"){
-								color = blocks.cobblestone.color;
+							if(chunks[i][j].blockType == blockToBeDestroyed){
+								blocks[index].mesh.setMatrixAt(blocks[index].count, matrix);
+								blocks[index].count++;
 							}
-							instancedChunk.setColorAt(count, color);
-							count++;
 						}
 					}
-					scene.add(instancedChunk);
+					scene.add(blocks[index].mesh);
 				}
 			}
 		});
@@ -680,15 +701,12 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									var blockType = null;
-									if(e == 0){
-										blockType = blocks.grass.name;
-									} else if(e == 1 || e == 2 || e == 3){
-										blockType = blocks.dirt.name;
-									} else if(e > 3){
-										blockType = blocks.cobblestone.name;
+									for(var t = 0; t < blocks.length; t++){
+										if(blocks[t].range.includes(e)){
+											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+											break;
+										}
 									}
-									chunk.push(new Block(x, v - (e * 5), z, false, blockType));
 								}
 							}
 							// Check if there is also placed blocks there
@@ -704,10 +722,12 @@
 
 				chunks = newChunks;
 
-				scene.remove(instancedChunk);
+				for(var i = 0; i < blocks.length; i++){
+					scene.remove(blocks[i].mesh);
+					blocks[i].mesh = new THREE.InstancedMesh(blockBox, blocks[i].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+					blocks[i].count = 0;
+				}
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
 						let matrix = new THREE.Matrix4().makeTranslation(
@@ -715,20 +735,19 @@
 							chunks[i][j].y,
 							chunks[i][j].z
 						);
-						instancedChunk.setMatrixAt(count, matrix);
-						var color = null;
-						if(chunks[i][j].blockType == "grass"){
-							color = blocks.grass.color;
-						} else if(chunks[i][j].blockType == "dirt"){
-							color = blocks.dirt.color;
-						} else if(chunks[i][j].blockType == "cobblestone"){
-							color = blocks.cobblestone.color;
+						for(var t = 0; t < blocks.length; t++){
+							if(blocks[t].name == chunks[i][j].blockType){
+								blocks[t].mesh.setMatrixAt(blocks[t].count, matrix);
+								blocks[t].count++;
+								break;
+							}
 						}
-						instancedChunk.setColorAt(count, color);
-						count++;
 					}
 				}
-				scene.add(instancedChunk);
+				
+				for(var i = 0; i < blocks.length; i++){
+					scene.add(blocks[i].mesh);
+				}
 			}
 
 			if(camera.position.z > highestZBlock() - (worldSize * ratio)){ // 20 is 4 blocks
@@ -769,15 +788,12 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									var blockType = null;
-									if(e == 0){
-										blockType = blocks.grass.name;
-									} else if(e == 1 || e == 2 || e == 3){
-										blockType = blocks.dirt.name;
-									} else if(e > 3){
-										blockType = blocks.cobblestone.name;
+									for(var t = 0; t < blocks.length; t++){
+										if(blocks[t].range.includes(e)){
+											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+											break;
+										}
 									}
-									chunk.push(new Block(x, v - (e * 5), z, false, blockType));
 								}
 							}
 							// Check if there is also placed blocks there
@@ -793,10 +809,12 @@
 
 				chunks = newChunks;
 
-				scene.remove(instancedChunk);
+				for(var i = 0; i < blocks.length; i++){
+					scene.remove(blocks[i].mesh);
+					blocks[i].mesh = new THREE.InstancedMesh(blockBox, blocks[i].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+					blocks[i].count = 0;
+				}
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
 						let matrix = new THREE.Matrix4().makeTranslation(
@@ -804,20 +822,19 @@
 							chunks[i][j].y,
 							chunks[i][j].z
 						);
-						instancedChunk.setMatrixAt(count, matrix);
-						var color = null;
-						if(chunks[i][j].blockType == "grass"){
-							color = blocks.grass.color;
-						} else if(chunks[i][j].blockType == "dirt"){
-							color = blocks.dirt.color;
-						} else if(chunks[i][j].blockType == "cobblestone"){
-							color = blocks.cobblestone.color;
+						for(var t = 0; t < blocks.length; t++){
+							if(blocks[t].name == chunks[i][j].blockType){
+								blocks[t].mesh.setMatrixAt(blocks[t].count, matrix);
+								blocks[t].count++;
+								break;
+							}
 						}
-						instancedChunk.setColorAt(count, color);
-						count++;
 					}
 				}
-				scene.add(instancedChunk);		
+				
+				for(var i = 0; i < blocks.length; i++){
+					scene.add(blocks[i].mesh);
+				}	
 			}
 
 			if(camera.position.x > highestXBlock() - (worldSize * ratio)){ // 20 is 4 blocks
@@ -857,15 +874,12 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									var blockType = null;
-									if(e == 0){
-										blockType = blocks.grass.name;
-									} else if(e == 1 || e == 2 || e == 3){
-										blockType = blocks.dirt.name;
-									} else if(e > 3){
-										blockType = blocks.cobblestone.name;
+									for(var t = 0; t < blocks.length; t++){
+										if(blocks[t].range.includes(e)){
+											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+											break;
+										}
 									}
-									chunk.push(new Block(x, v - (e * 5), z, false, blockType));
 								}
 							}
 							// Check if there is also placed blocks there
@@ -881,10 +895,12 @@
 
 				chunks = newChunks;
 
-				scene.remove(instancedChunk);
+				for(var i = 0; i < blocks.length; i++){
+					scene.remove(blocks[i].mesh);
+					blocks[i].mesh = new THREE.InstancedMesh(blockBox, blocks[i].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+					blocks[i].count = 0;
+				}
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
 						let matrix = new THREE.Matrix4().makeTranslation(
@@ -892,20 +908,19 @@
 							chunks[i][j].y,
 							chunks[i][j].z
 						);
-						instancedChunk.setMatrixAt(count, matrix);
-						var color = null;
-						if(chunks[i][j].blockType == "grass"){
-							color = blocks.grass.color;
-						} else if(chunks[i][j].blockType == "dirt"){
-							color = blocks.dirt.color;
-						} else if(chunks[i][j].blockType == "cobblestone"){
-							color = blocks.cobblestone.color;
+						for(var t = 0; t < blocks.length; t++){
+							if(blocks[t].name == chunks[i][j].blockType){
+								blocks[t].mesh.setMatrixAt(blocks[t].count, matrix);
+								blocks[t].count++;
+								break;
+							}
 						}
-						instancedChunk.setColorAt(count, color);
-						count++;
 					}
 				}
-				scene.add(instancedChunk);				
+				
+				for(var i = 0; i < blocks.length; i++){
+					scene.add(blocks[i].mesh);
+				}			
 			}
 
 			if(camera.position.x < lowestXBlock() + (worldSize * ratio)){ // 20 is 4 blocks
@@ -944,15 +959,12 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									var blockType = null;
-									if(e == 0){
-										blockType = blocks.grass.name;
-									} else if(e == 1 || e == 2 || e == 3){
-										blockType = blocks.dirt.name;
-									} else if(e > 3){
-										blockType = blocks.cobblestone.name;
+									for(var t = 0; t < blocks.length; t++){
+										if(blocks[t].range.includes(e)){
+											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+											break;
+										}
 									}
-									chunk.push(new Block(x, v - (e * 5), z, false, blockType));
 								}
 							}
 							// Check if there is also placed blocks there
@@ -968,10 +980,12 @@
 
 				chunks = newChunks;
 
-				scene.remove(instancedChunk);
+				for(var i = 0; i < blocks.length; i++){
+					scene.remove(blocks[i].mesh);
+					blocks[i].mesh = new THREE.InstancedMesh(blockBox, blocks[i].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
+					blocks[i].count = 0;
+				}
 
-				instancedChunk = new THREE.InstancedMesh(blockBox, materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
-				var count = 0;
 				for(var i = 0; i < chunks.length; i++){
 					for(var j = 0; j < chunks[i].length; j++){
 						let matrix = new THREE.Matrix4().makeTranslation(
@@ -979,20 +993,19 @@
 							chunks[i][j].y,
 							chunks[i][j].z
 						);
-						instancedChunk.setMatrixAt(count, matrix);
-						var color = null;
-						if(chunks[i][j].blockType == "grass"){
-							color = blocks.grass.color;
-						} else if(chunks[i][j].blockType == "dirt"){
-							color = blocks.dirt.color;
-						} else if(chunks[i][j].blockType == "cobblestone"){
-							color = blocks.cobblestone.color;
+						for(var t = 0; t < blocks.length; t++){
+							if(blocks[t].name == chunks[i][j].blockType){
+								blocks[t].mesh.setMatrixAt(blocks[t].count, matrix);
+								blocks[t].count++;
+								break;
+							}
 						}
-						instancedChunk.setColorAt(count, color);
-						count++;
 					}
 				}
-				scene.add(instancedChunk);	
+				
+				for(var i = 0; i < blocks.length; i++){
+					scene.add(blocks[i].mesh);
+				}
 			}
 		}
 
@@ -1053,8 +1066,18 @@
 		var plane;
 		function render(){
 			raycaster.setFromCamera(pointer, camera);
-			var intersection = raycaster.intersectObject(instancedChunk);
-			if(intersection[0] != undefined && intersection[0].distance < 40){
+			var intersection;
+			var next = false;
+			var distance = Infinity;
+			for(var i = 0; i < blocks.length; i++){
+				var int = raycaster.intersectObject(blocks[i].mesh);
+				if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+					next = true;
+					intersection = int;
+					distance = int[0].distance;
+				}
+			}
+			if(next){
 				//console.log(intersection[0]);
 				if(!scene.children.includes(plane)){
 					var planeG = new THREE.PlaneGeometry(5, 5);
