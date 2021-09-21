@@ -1,3 +1,17 @@
+<!--
+	Added worldGen and biomeGen and treesGen variables at the start
+	Noise seed changing
+	Added sand texture and block
+	Added biomes property to each type of block in the "blocks" variable
+	Added getBiome function
+	Added a biome variable inside the world generation codes - determines the biome based on the biomeGen
+	Added "&& blocks[b].biomes.includes(biome)" in if statement for creating the new block object
+	Added oaklogindex and oakleavesindex variables
+	Added making trees code - added treeNoise variable inside world generation codes
+	Added code for logs (tree trunks)
+	Added treeDetecting algorithm for leaves
+	Added code for leaves
+-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -46,7 +60,9 @@
 
  		requestAnimationFrame(animate);
 
- 		noise.seed(Math.random());
+ 		var worldGen = Math.random();
+ 		var biomeGen = Math.random();
+ 		var treesGen = Math.random();
 
  		var scene = new THREE.Scene();
  		scene.background = new THREE.Color(0x00ffff);
@@ -124,7 +140,7 @@
 		var zoff = 0;
 		var inc = 0.05;
 		var amplitude = 30 + (Math.random() * 70);
-		var renderDistance = 5;
+		var renderDistance = 4;
 		var chunkSize = 10;
 		var depth = 5; // keeps track of the depth of the world (in terms of blocks)
 		var minWorldY = -250; // the minimum y coordinate of a block
@@ -170,13 +186,52 @@
 			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")}),
 			new THREE.MeshBasicMaterial({map : loader.load("texture/cobblestone/cobblestone.png")})
 		];
-		var blocks = [
-			{name : "grass", materialArray : grassTexture, mesh : new THREE.InstancedMesh(blockBox, grassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0]},
-			{name : "dirt", materialArray : dirtTexture, mesh : new THREE.InstancedMesh(blockBox, dirtTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [1, 2]},
-			{name : "cobblestone", materialArray : cobblestoneTexture, mesh : new THREE.InstancedMesh(blockBox, cobblestoneTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [3, 4]},
+		var oakLogTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/side.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/side.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/top.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/bottom.jpg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/side.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLog/side.png")})
 		];
-		var blockTypes = ["grass", "dirt", "cobblestone"];
+		var oakLeavesTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/oakLeaves/oakLeaves.png")})
+		];
+		var sandTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")})
+		];
 
+		var blocks = [
+			{name : "grass", materialArray : grassTexture, mesh : new THREE.InstancedMesh(blockBox, grassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0], biomes : ["plains"]},
+			{name : "dirt", materialArray : dirtTexture, mesh : new THREE.InstancedMesh(blockBox, dirtTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [1, 2], biomes : ["plains"]},
+			{name : "cobblestone", materialArray : cobblestoneTexture, mesh : new THREE.InstancedMesh(blockBox, cobblestoneTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [3, 4], biomes : ["plains", "desert"]},
+			{name : "oakLog", materialArray : oakLogTexture, mesh : new THREE.InstancedMesh(blockBox, oakLogTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains"]},
+			{name : "oakLeaves", materialArray : oakLeavesTexture, mesh : new THREE.InstancedMesh(blockBox, oakLeavesTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains"]},
+			{name : "sand", materialArray : sandTexture, mesh : new THREE.InstancedMesh(blockBox, sandTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0, 1, 2], biomes : ["desert"]},
+		];
+		var blockTypes = ["grass", "dirt", "cobblestone", "oakLog", "oakLeaves", "sand"];
+		var biomeSize = 1; // the higher this number, the larger the biomes get
+		var treeDensity = 1; 
+		function getBiome(n){
+			if(n < 0.2){
+				return "plains";
+			} else if(n >= 0.2){
+				return "desert";
+			}
+		}
+
+		var oakLogIndex = blockTypes.indexOf("oakLog");
+		var oakLeavesIndex = blockTypes.indexOf("oakLeaves");
 		for(var i = 0; i < renderDistance; i++){
 			for(j = 0; j < renderDistance; j++){
 				var chunk = [];
@@ -184,21 +239,79 @@
 					for(var z = j * chunkSize; z < (j * chunkSize) + chunkSize; z++){
 						xoff = inc * x;
 						zoff = inc * z;
+						noise.seed(worldGen);
 						var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-						for(var d = 0; d < depth; d++){
-							if(v - (d * 5) < minWorldY){
-								continue;
+						noise.seed(biomeGen);
+						var biome = getBiome(noise.perlin2(xoff / biomeSize, zoff / biomeSize));
+						noise.seed(treesGen);
+						var treeNoise = noise.perlin2(xoff / treeDensity, zoff / treeDensity);
+						var canPutLeaf = false;
+						for(var xInc = -1; xInc < 2; xInc += 1){
+							for(var zInc = -1; zInc < 2; zInc += 1){
+								if(xInc == 0 && zInc == 0){
+									continue;
+								}
+								var xoffAround = inc * (x + xInc);
+								var zoffAround = inc * (z + zInc);
+								var treeNoiseAround = noise.perlin2(xoffAround / treeDensity, zoffAround / treeDensity);
+								if(parseFloat(treeNoiseAround.toFixed(3)) == 0.001){
+									canPutLeaf = true;
+									break;
+								}
 							}
-							let matrix = new THREE.Matrix4().makeTranslation(
-								x * 5,
-								v - (d * 5),
-								z * 5
-							);
-							for(var b = 0; b < blocks.length; b++){
-								if(blocks[b].range.includes(d)){
-									blocks[b].mesh.setMatrixAt(blocks[b].count, matrix);
-									blocks[b].count++;
-									chunk.push(new Block(x * 5, v - (d * 5), z * 5 , false, blocks[b].name));
+						}
+						for(var d = -8; d < depth; d++){
+							if(d >= 0){
+								if(v - (d * 5) < minWorldY){
+									continue;
+								}
+								let matrix = new THREE.Matrix4().makeTranslation(
+									x * 5,
+									v - (d * 5),
+									z * 5
+								);
+								for(var b = 0; b < blocks.length; b++){
+									if(blocks[b].range.includes(d) && blocks[b].biomes.includes(biome)){
+										blocks[b].mesh.setMatrixAt(blocks[b].count, matrix);
+										blocks[b].count++;
+										chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[b].name));
+									}
+								}
+							} else {
+								// TREES!
+								if(biome == "plains"){
+									// LOGS
+									if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+										if(d < 0 && d >= -8){
+											let logMatrix = new THREE.Matrix4().makeTranslation(
+												x * 5,
+												v - (d * 5),
+												z * 5
+											);
+											if(d != -8){
+												blocks[oakLogIndex].mesh.setMatrixAt(blocks[oakLogIndex].count, logMatrix);
+												blocks[oakLogIndex].count++;
+												chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLogIndex].name));
+											} else { // TOP LEAf
+												blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, logMatrix);
+												blocks[oakLeavesIndex].count++;
+												chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLeavesIndex].name));
+											}
+										}
+									}
+									// LEAVES
+									if(d <= -6 && canPutLeaf){
+										if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+											let leafMatrix = new THREE.Matrix4().makeTranslation(
+												x * 5,
+												v - (d * 5),
+												z * 5
+											);
+											blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, leafMatrix);
+											blocks[oakLeavesIndex].count++;
+											chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLeavesIndex].name));
+										}
+									}
 								}
 							}
 						}
@@ -325,7 +438,7 @@
 					}
 					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
 					if(y > minWorldY){
-						var blockToBePlaced = "cobblestone";
+						var blockToBePlaced = "oakLog";
 						var b = new Block(x, y, z, true, blockToBePlaced);
 						if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
 							chunks[identifyChunk(x, z)].push(b);
@@ -687,8 +800,28 @@
 						for(var z = lowestZ - (chunkSize * 5); z < lowestZ; z = z + 5){
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
+							noise.seed(worldGen);
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							for(var e = 0; e < depth; e++){
+							noise.seed(biomeGen);
+							var biome = getBiome(noise.perlin2(xoff / biomeSize, zoff / biomeSize));
+							noise.seed(treesGen);
+							var treeNoise = noise.perlin2(xoff / treeDensity, zoff / treeDensity);
+							var canPutLeaf = false;
+							for(var xInc = -5; xInc <= 5; xInc += 5){
+								for(var zInc = -5; zInc <= 5; zInc += 5){
+									if(xInc == 0 && zInc == 0){
+										continue;
+									}
+									var xoffAround = inc * (x + xInc) / 5;
+									var zoffAround = inc * (z + zInc) / 5;
+									var treeNoiseAround = noise.perlin2(xoffAround / treeDensity, zoffAround / treeDensity);
+									if(parseFloat(treeNoiseAround.toFixed(3)) == 0.001){
+										canPutLeaf = true;
+										break;
+									}
+								}
+							}
+							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
 								}
@@ -701,10 +834,43 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									for(var t = 0; t < blocks.length; t++){
-										if(blocks[t].range.includes(e)){
-											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
-											break;
+									if(e >= 0){
+										for(var t = 0; t < blocks.length; t++){
+											if(blocks[t].range.includes(e) && blocks[t].biomes.includes(biome)){
+												chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+												break;
+											}
+										}
+									} else {
+										// TREES!
+										if(biome == "plains"){
+											// LOGS
+											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+												if(e < 0 && e >= -8){
+													let logMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													if(e != -8){
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLogIndex].name));
+													} else { // TOP LEAf
+														console.log(1)
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+													}
+												}
+											}
+											// LEAVES
+											if(e <= -6 && canPutLeaf){
+												if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+													let leafMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+												}
+											}
 										}
 									}
 								}
@@ -774,8 +940,28 @@
 						for(var z = highestZ + 5; z < (highestZ + 5) + (chunkSize * 5); z = z + 5){
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
+							noise.seed(worldGen);
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							for(var e = 0; e < depth; e++){
+							noise.seed(biomeGen);
+							var biome = getBiome(noise.perlin2(xoff / biomeSize, zoff / biomeSize));
+							noise.seed(treesGen);
+							var treeNoise = noise.perlin2(xoff / treeDensity, zoff / treeDensity);
+							var canPutLeaf = false;
+							for(var xInc = -5; xInc <= 5; xInc += 5){
+								for(var zInc = -5; zInc <= 5; zInc += 5){
+									if(xInc == 0 && zInc == 0){
+										continue;
+									}
+									var xoffAround = inc * (x + xInc) / 5;
+									var zoffAround = inc * (z + zInc) / 5;
+									var treeNoiseAround = noise.perlin2(xoffAround / treeDensity, zoffAround / treeDensity);
+									if(parseFloat(treeNoiseAround.toFixed(3)) == 0.001){
+										canPutLeaf = true;
+										break;
+									}
+								}
+							}
+							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
 								}
@@ -788,10 +974,42 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									for(var t = 0; t < blocks.length; t++){
-										if(blocks[t].range.includes(e)){
-											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
-											break;
+									if(e >= 0){
+										for(var t = 0; t < blocks.length; t++){
+											if(blocks[t].range.includes(e) && blocks[t].biomes.includes(biome)){
+												chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+												break;
+											}
+										}
+									} else {
+										// TREES!
+										if(biome == "plains"){
+											// LOGS
+											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+												if(e < 0 && e >= -8){
+													let logMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													if(e != -8){
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLogIndex].name));
+													} else { // TOP LEAf
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+													}
+												}
+											}
+											// LEAVES
+											if(e <= -6 && canPutLeaf){
+												if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+													let leafMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+												}
+											}
 										}
 									}
 								}
@@ -860,8 +1078,28 @@
 						for(var x = highestX + 5; x < highestX + 5 + (chunkSize * 5); x = x + 5){
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
+							noise.seed(worldGen);
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							for(var e = 0; e < depth; e++){
+							noise.seed(biomeGen);
+							var biome = getBiome(noise.perlin2(xoff / biomeSize, zoff / biomeSize));
+							noise.seed(treesGen);
+							var treeNoise = noise.perlin2(xoff / treeDensity, zoff / treeDensity);
+							var canPutLeaf = false;
+							for(var xInc = -5; xInc <= 5; xInc += 5){
+								for(var zInc = -5; zInc <= 5; zInc += 5){
+									if(xInc == 0 && zInc == 0){
+										continue;
+									}
+									var xoffAround = inc * (x + xInc) / 5;
+									var zoffAround = inc * (z + zInc) / 5;
+									var treeNoiseAround = noise.perlin2(xoffAround / treeDensity, zoffAround / treeDensity);
+									if(parseFloat(treeNoiseAround.toFixed(3)) == 0.001){
+										canPutLeaf = true;
+										break;
+									}
+								}
+							}
+							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
 								}
@@ -874,10 +1112,42 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									for(var t = 0; t < blocks.length; t++){
-										if(blocks[t].range.includes(e)){
-											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
-											break;
+									if(e >= 0){
+										for(var t = 0; t < blocks.length; t++){
+											if(blocks[t].range.includes(e) && blocks[t].biomes.includes(biome)){
+												chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+												break;
+											}
+										}
+									} else {
+										// TREES!
+										if(biome == "plains"){
+											// LOGS
+											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+												if(e < 0 && e >= -8){
+													let logMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													if(e != -8){
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLogIndex].name));
+													} else { // TOP LEAf
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+													}
+												}
+											}
+											// LEAVES
+											if(e <= -6 && canPutLeaf){
+												if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+													let leafMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+												}
+											}
 										}
 									}
 								}
@@ -945,8 +1215,28 @@
 						for(var x = lowestX - (chunkSize * 5); x < lowestX; x = x + 5){
 							xoff = inc * x / 5;
 							zoff = inc * z / 5;
+							noise.seed(worldGen);
 							var v = Math.round(noise.perlin2(xoff, zoff) * amplitude / 5) * 5;
-							for(var e = 0; e < depth; e++){
+							noise.seed(biomeGen);
+							var biome = getBiome(noise.perlin2(xoff / biomeSize, zoff / biomeSize));
+							noise.seed(treesGen);
+							var treeNoise = noise.perlin2(xoff / treeDensity, zoff / treeDensity);
+							var canPutLeaf = false;
+							for(var xInc = -5; xInc <= 5; xInc += 5){
+								for(var zInc = -5; zInc <= 5; zInc += 5){
+									if(xInc == 0 && zInc == 0){
+										continue;
+									}
+									var xoffAround = inc * (x + xInc) / 5;
+									var zoffAround = inc * (z + zInc) / 5;
+									var treeNoiseAround = noise.perlin2(xoffAround / treeDensity, zoffAround / treeDensity);
+									if(parseFloat(treeNoiseAround.toFixed(3)) == 0.001){
+										canPutLeaf = true;
+										break;
+									}
+								}
+							}
+							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
 								}
@@ -959,10 +1249,42 @@
 									}
 								}
 								if(!blockIsDestroyed){
-									for(var t = 0; t < blocks.length; t++){
-										if(blocks[t].range.includes(e)){
-											chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
-											break;
+									if(e >= 0){
+										for(var t = 0; t < blocks.length; t++){
+											if(blocks[t].range.includes(e) && blocks[t].biomes.includes(biome)){
+												chunk.push(new Block(x, v - (e * 5), z, false, blocks[t].name));
+												break;
+											}
+										}
+									} else {
+										// TREES!
+										if(biome == "plains"){
+											// LOGS
+											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+												if(e < 0 && e >= -8){
+													let logMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													if(e != -8){
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLogIndex].name));
+													} else { // TOP LEAf
+														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+													}
+												}
+											}
+											// LEAVES
+											if(e <= -6 && canPutLeaf){
+												if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+													let leafMatrix = new THREE.Matrix4().makeTranslation(
+														x,
+														v - (e * 5),
+														z
+													);
+													chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
+												}
+											}
 										}
 									}
 								}
