@@ -13,7 +13,7 @@ NOTE!
 - Inlcude the license or credit this project for any commerical use!
 
 If you have any questions, please ask either here or in youtube.
-Find me in youtube at Hritik RC: https://www.youtube.com/c/hritikrc
-Playlist for the minecraft series: https://www.youtube.com/playlist?list=PLEtXCX1lakbhq_01JKJILx90wLfdwrJig
+- Find me in youtube at Hritik RC: https://www.youtube.com/c/hritikrc
+- Playlist for the minecraft series: https://www.youtube.com/playlist?list=PLEtXCX1lakbhq_01JKJILx90wLfdwrJig
 
 Thanks for the support! :)
