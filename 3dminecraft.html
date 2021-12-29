@@ -1,16 +1,25 @@
 <!--
-	Added worldGen and biomeGen and treesGen variables at the start
-	Noise seed changing
-	Added sand texture and block
-	Added biomes property to each type of block in the "blocks" variable
-	Added getBiome function
-	Added a biome variable inside the world generation codes - determines the biome based on the biomeGen
-	Added "&& blocks[b].biomes.includes(biome)" in if statement for creating the new block object
-	Added oaklogindex and oakleavesindex variables
-	Added making trees code - added treeNoise variable inside world generation codes
-	Added code for logs (tree trunks)
-	Added treeDetecting algorithm for leaves
-	Added code for leaves
+	Removed all console.log(1)s
+	Added noise change in all line 246 around
+	Added water code
+	Added water condition for trees
+	Added water codes for infinite terrain generations which includes brokenBlocks!
+	Added water transparency
+	
+	FOR NOT SEEING CURSOR THING
+	Added  && blocks[i].name != "water" in line 1500 approx (white plane from cursor not on water)
+
+	FOR MOVING THROUGH WATER
+	Added  && b.blockType != "water" in moving left, right, front, back and also in both if statements of falling code
+	
+	FOR PLACING THROUGH WATER
+	Added a condition: blocks[i].name != "water" in condition in placing blocks code at start
+	Added placing water case code
+	Added if condition in final for loop
+	Added scene.add for water
+
+	FOR NOT BREAKING WATER!
+	Added the condition:  && blocks[i].name != "water"
 -->
 <!DOCTYPE html>
 <html>
@@ -210,6 +219,14 @@
 			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")}),
 			new THREE.MeshBasicMaterial({map : loader.load("texture/sand/sand.png")})
 		];
+		var waterTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")})
+		];
 
 		var blocks = [
 			{name : "grass", materialArray : grassTexture, mesh : new THREE.InstancedMesh(blockBox, grassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0], biomes : ["plains"]},
@@ -218,8 +235,9 @@
 			{name : "oakLog", materialArray : oakLogTexture, mesh : new THREE.InstancedMesh(blockBox, oakLogTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains"]},
 			{name : "oakLeaves", materialArray : oakLeavesTexture, mesh : new THREE.InstancedMesh(blockBox, oakLeavesTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains"]},
 			{name : "sand", materialArray : sandTexture, mesh : new THREE.InstancedMesh(blockBox, sandTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0, 1, 2], biomes : ["desert"]},
+			{name : "water", materialArray : waterTexture, mesh : new THREE.InstancedMesh(blockBox, waterTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains", "desert"]},
 		];
-		var blockTypes = ["grass", "dirt", "cobblestone", "oakLog", "oakLeaves", "sand"];
+		var blockTypes = ["grass", "dirt", "cobblestone", "oakLog", "oakLeaves", "sand", "water"];
 		var biomeSize = 1; // the higher this number, the larger the biomes get
 		var treeDensity = 1; 
 		function getBiome(n){
@@ -232,6 +250,20 @@
 
 		var oakLogIndex = blockTypes.indexOf("oakLog");
 		var oakLeavesIndex = blockTypes.indexOf("oakLeaves");
+		var waterIndex = blockTypes.indexOf("water");
+		var waterLevel = 0;
+
+		// Setting Opacity of water
+		for(var i = 0; i < waterTexture.length; i++){
+			if(i == 2 || i == 3){ // top and bottom
+				blocks[waterIndex].materialArray[i].transparent = true;
+				blocks[waterIndex].materialArray[i].opacity = 0.7;
+			} else { // sides
+				blocks[waterIndex].materialArray[i].transparent = true;
+				blocks[waterIndex].materialArray[i].opacity = 0.4;
+			}
+		}
+
 		for(var i = 0; i < renderDistance; i++){
 			for(j = 0; j < renderDistance; j++){
 				var chunk = [];
@@ -260,6 +292,26 @@
 								}
 							}
 						}
+
+						var waterExistsHere = false;
+						var h = 5;
+						while(true){
+							if(v + h <= waterLevel){
+								let matrix = new THREE.Matrix4().makeTranslation(
+									x * 5,
+									v + h,
+									z * 5
+								);
+								blocks[waterIndex].mesh.setMatrixAt(blocks[waterIndex].count, matrix);
+								blocks[waterIndex].count++;
+								chunk.push(new Block(x * 5, v + h, z * 5, false, blocks[waterIndex].name));
+								h += 5;
+								waterExistsHere = true;
+							} else {
+								break;
+							}
+						}
+
 						for(var d = -8; d < depth; d++){
 							if(d >= 0){
 								if(v - (d * 5) < minWorldY){
@@ -279,7 +331,7 @@
 								}
 							} else {
 								// TREES!
-								if(biome == "plains"){
+								if(biome == "plains" && waterExistsHere == false){
 									// LOGS
 									if(parseFloat(treeNoise.toFixed(3)) == 0.001){
 										if(d < 0 && d >= -8){
@@ -387,9 +439,14 @@
 				var intersection;
 				var next = false;
 				var distance = Infinity;
+				var placedInWater = false;
 				for(var i = 0; i < blocks.length; i++){
 					var int = raycaster.intersectObject(blocks[i].mesh);
 					if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+						if(blocks[i].name == "water"){
+							placedInWater = true;
+							continue;
+						}
 						next = true;
 						intersection = int;
 						distance = int[0].distance;
@@ -444,6 +501,22 @@
 							chunks[identifyChunk(x, z)].push(b);
 							placedBlocks.push(b);
 
+							// Placing in water
+							if(placedInWater){
+								for(var i = 0; i < chunks[identifyChunk(x, z)].length; i++){
+									if(chunks[identifyChunk(x, z)][i].x == x && chunks[identifyChunk(x, z)][i].y == y && chunks[identifyChunk(x, z)][i].z == z && chunks[identifyChunk(x, z)][i].blockType == "water"){
+										// found that water block!
+										chunks[identifyChunk(x, z)].splice(i, 1);
+										brokenBlocks.push(new Block(x, y, z, false, "water"));
+										scene.remove(blocks[waterIndex].mesh);
+										blocks[waterIndex].mesh = new THREE.InstancedMesh(blockBox, blocks[waterIndex].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) - brokenBlocks.length);
+										blocks[waterIndex].count = 0;
+										break;
+									}
+								}
+							}
+
+							// Updated chunks of placed block
 							var index = blockTypes.indexOf(blockToBePlaced);
 							scene.remove(blocks[index].mesh);
 							blocks[index].mesh = new THREE.InstancedMesh(blockBox, blocks[index].materialArray, (renderDistance * renderDistance * chunkSize * chunkSize * depth) + placedBlocks.length);
@@ -460,9 +533,14 @@
 										blocks[index].mesh.setMatrixAt(blocks[index].count, matrix);
 										blocks[index].count++;
 									}
+									if(chunks[i][j].blockType == "water"){
+										blocks[waterIndex].mesh.setMatrixAt(blocks[waterIndex].count, matrix);
+										blocks[waterIndex].count++;
+									}
 								}
 							}
 							scene.add(blocks[index].mesh);
+							scene.add(blocks[waterIndex].mesh);
 						}	
 					}	
 				}
@@ -498,7 +576,7 @@
 				var distance = Infinity;
 				for(var i = 0; i < blocks.length; i++){
 					var int = raycaster.intersectObject(blocks[i].mesh);
-					if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+					if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance && blocks[i].name != "water"){
 						next = true;
 						intersection = int;
 						distance = int[0].distance;
@@ -670,7 +748,7 @@
 					for(var j = 0; j < chunks[i].length; j++){
 						var b = chunks[i][j];
 						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
-						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2)) && b.blockType != "water"){
 							player.backward((movingSpeed * (sprint ? sprintSpeedInc : 1)));
 							forback = 0;
 							rightleft = 0;
@@ -686,7 +764,7 @@
 					for(var j = 0; j < chunks[i].length; j++){
 						var b = chunks[i][j];
 						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
-						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2)) && b.blockType != "water"){
 							player.forward(movingSpeed * (sprint ? sprintSpeedInc : 1));
 							forback = 0;
 							rightleft = 0;
@@ -702,7 +780,7 @@
 					for(var j = 0; j < chunks[i].length; j++){
 						var b = chunks[i][j];
 						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
-						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2)) && b.blockType != "water"){
 							player.left(movingSpeed * (sprint ? sprintSpeedInc : 1));
 							forback = 0;
 							rightleft = 0;
@@ -718,7 +796,7 @@
 					for(var j = 0; j < chunks[i].length; j++){
 						var b = chunks[i][j];
 						var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
-						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2))){
+						if(c && (b.y - 2.5 < player.y + (player.h / 2) && b.y + 2.5 > player.y - (player.h / 2)) && b.blockType != "water"){
 							player.right(movingSpeed * (sprint ? sprintSpeedInc : 1));
 							forback = 0;
 							rightleft = 0;
@@ -760,13 +838,13 @@
 				for(var j = 0; j < chunks[i].length; j++){
 					var b = chunks[i][j];
 					var c = intersect(b.x, b.y + 10, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d);
-					if(c && camera.position.y <= chunks[i][j].y + 2.5 + player.h && camera.position.y >= chunks[i][j].y){
+					if(c && camera.position.y <= chunks[i][j].y + 2.5 + player.h && camera.position.y >= chunks[i][j].y && b.blockType != "water"){
 						camera.position.y = chunks[i][j].y + 2.5 + player.h;
 						ySpeed = 0;
 						canJump = true;
 					}
 					var c = intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d); // this one doesn't have a + 10 in the b.y
-					if(c && camera.position.y >= chunks[i][j].y - 2.5 && camera.position.y <= chunks[i][j].y){
+					if(c && camera.position.y >= chunks[i][j].y - 2.5 && camera.position.y <= chunks[i][j].y && b.blockType != "water"){
 						ySpeed = 0.5;
 					}
 				}
@@ -821,6 +899,29 @@
 									}
 								}
 							}
+							var waterExistsHere = false;
+							var h = 5;
+							while(true){
+								var brokenWaterBlock = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v + h && brokenBlocks[d].z == z){
+										brokenWaterBlock = true;
+										break;
+									}
+								}
+								if(v + h <= waterLevel && brokenWaterBlock == false){ // if there is a broken water block, it has to be water
+									let matrix = new THREE.Matrix4().makeTranslation(
+										x,
+										v + h,
+										z
+									);
+									chunk.push(new Block(x, v + h, z, false, blocks[waterIndex].name));
+									h += 5;
+									waterExistsHere = true;
+								} else {
+									break;
+								}
+							}
 							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
@@ -843,7 +944,7 @@
 										}
 									} else {
 										// TREES!
-										if(biome == "plains"){
+										if(biome == "plains" && waterExistsHere == false){
 											// LOGS
 											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
 												if(e < 0 && e >= -8){
@@ -855,7 +956,6 @@
 													if(e != -8){
 														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLogIndex].name));
 													} else { // TOP LEAf
-														console.log(1)
 														chunk.push(new Block(x, v - (e * 5), z, false, blocks[oakLeavesIndex].name));
 													}
 												}
@@ -961,6 +1061,29 @@
 									}
 								}
 							}
+							var waterExistsHere = false;
+							var h = 5;
+							while(true){
+								var brokenWaterBlock = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v + h && brokenBlocks[d].z == z){
+										brokenWaterBlock = true;
+										break;
+									}
+								}
+								if(v + h <= waterLevel && brokenWaterBlock == false){ // if there is a broken water block, it has to be water
+									let matrix = new THREE.Matrix4().makeTranslation(
+										x,
+										v + h,
+										z
+									);
+									chunk.push(new Block(x, v + h, z, false, blocks[waterIndex].name));
+									h += 5;
+									waterExistsHere = true;
+								} else {
+									break;
+								}
+							}
 							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
@@ -983,7 +1106,7 @@
 										}
 									} else {
 										// TREES!
-										if(biome == "plains"){
+										if(biome == "plains" && waterExistsHere == false){
 											// LOGS
 											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
 												if(e < 0 && e >= -8){
@@ -1099,6 +1222,29 @@
 									}
 								}
 							}
+							var waterExistsHere = false;
+							var h = 5;
+							while(true){
+								var brokenWaterBlock = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v + h && brokenBlocks[d].z == z){
+										brokenWaterBlock = true;
+										break;
+									}
+								}
+								if(v + h <= waterLevel && brokenWaterBlock == false){ // if there is a broken water block, it has to be water
+									let matrix = new THREE.Matrix4().makeTranslation(
+										x,
+										v + h,
+										z
+									);
+									chunk.push(new Block(x, v + h, z, false, blocks[waterIndex].name));
+									h += 5;
+									waterExistsHere = true;
+								} else {
+									break;
+								}
+							}
 							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
@@ -1121,7 +1267,7 @@
 										}
 									} else {
 										// TREES!
-										if(biome == "plains"){
+										if(biome == "plains" && waterExistsHere == false){
 											// LOGS
 											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
 												if(e < 0 && e >= -8){
@@ -1236,6 +1382,29 @@
 									}
 								}
 							}
+							var waterExistsHere = false;
+							var h = 5;
+							while(true){
+								var brokenWaterBlock = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x && brokenBlocks[d].y == v + h && brokenBlocks[d].z == z){
+										brokenWaterBlock = true;
+										break;
+									}
+								}
+								if(v + h <= waterLevel && brokenWaterBlock == false){ // if there is a broken water block, it has to be water
+									let matrix = new THREE.Matrix4().makeTranslation(
+										x,
+										v + h,
+										z
+									);
+									chunk.push(new Block(x, v + h, z, false, blocks[waterIndex].name));
+									h += 5;
+									waterExistsHere = true;
+								} else {
+									break;
+								}
+							}
 							for(var e = -8; e < depth; e++){
 								if(v - (e * 5) < minWorldY){
 									continue;
@@ -1258,7 +1427,7 @@
 										}
 									} else {
 										// TREES!
-										if(biome == "plains"){
+										if(biome == "plains" && waterExistsHere == false){
 											// LOGS
 											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
 												if(e < 0 && e >= -8){
@@ -1393,7 +1562,7 @@
 			var distance = Infinity;
 			for(var i = 0; i < blocks.length; i++){
 				var int = raycaster.intersectObject(blocks[i].mesh);
-				if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance){
+				if(int[0] != undefined && int[0].distance < 40 && int[0].distance < distance && blocks[i].name != "water"){
 					next = true;
 					intersection = int;
 					distance = int[0].distance;
