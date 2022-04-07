@@ -1,26 +1,21 @@
 <!--
-	Removed all console.log(1)s
-	Added noise change in all line 246 around
-	Added water code
-	Added water condition for trees
-	Added water codes for infinite terrain generations which includes brokenBlocks!
-	Added water transparency
-	
-	FOR NOT SEEING CURSOR THING
-	Added  && blocks[i].name != "water" in line 1500 approx (white plane from cursor not on water)
+	Added 9 images, their class style and their individual styles for position
 
-	FOR MOVING THROUGH WATER
-	Added  && b.blockType != "water" in moving left, right, front, back and also in both if statements of falling code
-	
-	FOR PLACING THROUGH WATER
-	Added a condition: blocks[i].name != "water" in condition in placing blocks code at start
-	Added placing water case code
-	Added if condition in final for loop
-	Added scene.add for water
+	Added selecting a hotbar slot in keyDown function and also made a slot variable
 
-	FOR NOT BREAKING WATER!
-	Added the condition:  && blocks[i].name != "water"
+	Hotbar code: line 79ish
+
+	Added small code to resize function
+
+	Made blockToBePlaced into a global variable and removed the code for blockToBePlaced = "oakLog"
+
+	Added glass, made glassIndex variable, made glass material transparent in code around water transparency code
+
+	Added brick
+
+	Added plank
 -->
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -33,6 +28,40 @@
 			position : absolute;
 			width : 3%;
 		}
+		.hotbar {
+			width : 5%;
+			position : absolute;
+			top : 85%;
+			border : 1px solid white;
+			opacity : 0.8;
+		}
+		#slot1 {
+			left : 27.5%;
+		}
+		#slot2 {
+			left : 32.5%;
+		}
+		#slot3 {
+			left : 37.5%;
+		}
+		#slot4 {
+			left : 42.5%;
+		}
+		#slot5 {
+			left : 47.5%;
+		}
+		#slot6 {
+			left : 52.5%;
+		}
+		#slot7 {
+			left : 57.5%;
+		}
+		#slot8 {
+			left : 62.5%;
+		}
+		#slot9 {
+			left : 67.5%;
+		}
 	</style>
 </head>
 <body>
@@ -42,9 +71,25 @@
 	<script src = "PointerLockControls.js"></script>
 	<script src = "stats.js"></script>
 
+	<img src = "texture/cobblestone/cobblestone.png" class = "hotbar" id = "slot1">
+	<img src = "texture/dirt/dirt.png" class = "hotbar" id = "slot2">
+	<img src = "texture/grass/side.jpg" class = "hotbar" id = "slot3">
+	<img src = "texture/oakLeaves/oakLeaves.png" class = "hotbar" id = "slot4">
+	<img src = "texture/oakLog/side.png" class = "hotbar" id = "slot5">
+	<img src = "texture/sand/sand.png" class = "hotbar" id = "slot6">
+	<img src = "texture/glass/glass.png" class = "hotbar" id = "slot7">
+	<img src = "texture/brick/brick.png" class = "hotbar" id = "slot8">
+	<img src = "texture/plank/plank.png" class = "hotbar" id = "slot9">
+
 	<img src = "cursor.png" id = "cursor">
 
  	<script type="text/javascript">
+
+ 		// Hotbar
+ 		for(var i = 0; i < document.getElementsByClassName("hotbar").length; i++){
+ 			document.getElementsByClassName("hotbar")[i].style.height = (0.05 * window.innerWidth).toString();
+ 		}
+ 		var hotbar = ["cobblestone", "dirt", "grass", "oakLeaves", "oakLog", "sand", "glass", "brick", "plank"];
 
  		// Cursor
  		var cursor = document.getElementById("cursor");
@@ -52,7 +97,6 @@
  		cursor.style.top = ((0.5 * window.innerHeight) - (0.5 * cursor.height)).toString() + "px";
 
  		// Performance Stats
-
  		var stats = new Stats();
  		stats.showPanel(0); // 0:fps, 1:ms, 2:mb, 3+:custom
  		document.body.appendChild(stats.dom);
@@ -227,6 +271,30 @@
 			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")}),
 			new THREE.MeshBasicMaterial({map : loader.load("texture/water/water.jpeg")})
 		];
+		var glassTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/glass/glass.png")})
+		];
+		var brickTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/brick/brick.png")})
+		];
+		var plankTexture = [
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")}),
+			new THREE.MeshBasicMaterial({map : loader.load("texture/plank/plank.png")})
+		];
 
 		var blocks = [
 			{name : "grass", materialArray : grassTexture, mesh : new THREE.InstancedMesh(blockBox, grassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0], biomes : ["plains"]},
@@ -236,8 +304,11 @@
 			{name : "oakLeaves", materialArray : oakLeavesTexture, mesh : new THREE.InstancedMesh(blockBox, oakLeavesTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains"]},
 			{name : "sand", materialArray : sandTexture, mesh : new THREE.InstancedMesh(blockBox, sandTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [0, 1, 2], biomes : ["desert"]},
 			{name : "water", materialArray : waterTexture, mesh : new THREE.InstancedMesh(blockBox, waterTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains", "desert"]},
+			{name : "glass", materialArray : glassTexture, mesh : new THREE.InstancedMesh(blockBox, glassTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains", "desert"]},
+			{name : "brick", materialArray : brickTexture, mesh : new THREE.InstancedMesh(blockBox, brickTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains", "desert"]},
+			{name : "plank", materialArray : plankTexture, mesh : new THREE.InstancedMesh(blockBox, plankTexture, renderDistance * renderDistance * chunkSize * chunkSize * depth), count : 0, range : [], biomes : ["plains", "desert"]},
 		];
-		var blockTypes = ["grass", "dirt", "cobblestone", "oakLog", "oakLeaves", "sand", "water"];
+		var blockTypes = ["grass", "dirt", "cobblestone", "oakLog", "oakLeaves", "sand", "water", "glass", "brick", "plank"];
 		var biomeSize = 1; // the higher this number, the larger the biomes get
 		var treeDensity = 1; 
 		function getBiome(n){
@@ -251,6 +322,7 @@
 		var oakLogIndex = blockTypes.indexOf("oakLog");
 		var oakLeavesIndex = blockTypes.indexOf("oakLeaves");
 		var waterIndex = blockTypes.indexOf("water");
+		var glassIndex = blockTypes.indexOf("glass");
 		var waterLevel = 0;
 
 		// Setting Opacity of water
@@ -262,6 +334,10 @@
 				blocks[waterIndex].materialArray[i].transparent = true;
 				blocks[waterIndex].materialArray[i].opacity = 0.4;
 			}
+		}
+		// Making glass transparent
+		for(var i = 0; i < glassTexture.length; i++){
+			blocks[glassIndex].materialArray[i].transparent = true;
 		}
 
 		for(var i = 0; i < renderDistance; i++){
@@ -415,6 +491,8 @@
 
 		var start = 0;
 		var sprint = false;
+		var slot = 1;
+		var blockToBePlaced;
 		document.addEventListener("keydown", function(e){
 			if(e.key == "w") {
 		        var elapsed = new Date().getTime();
@@ -423,6 +501,22 @@
 		        }
 		        start = elapsed;
 		    }
+
+		    // Selecting a slot
+		    if(["1", "2", "3", "4", "5", "6", "7", "8", "9"].includes(e.key)){
+			    for(var i = 1; i <= 9; i++){
+			    	document.getElementsByClassName("hotbar")[i - 1].style.opacity = "0.8";
+			    	document.getElementsByClassName("hotbar")[i - 1].style.border = "1px solid white";
+			    	document.getElementsByClassName("hotbar")[i - 1].style.zIndex = "0";
+			    	if(e.key == i.toString()){
+			    		slot = i;
+			    		blockToBePlaced = hotbar[slot - 1]
+			    		document.getElementsByClassName("hotbar")[i - 1].style.opacity = "1";
+			    		document.getElementsByClassName("hotbar")[i - 1].style.border = "2px solid black";
+			    		document.getElementsByClassName("hotbar")[i - 1].style.zIndex = "1";
+			    	}
+			    }
+			}
 
 			keys.push(e.key);
 
@@ -495,7 +589,6 @@
 					}
 					y = Math.round(y); // sometimes, y is for some reason e.g 4.999999999999
 					if(y > minWorldY){
-						var blockToBePlaced = "oakLog";
 						var b = new Block(x, y, z, true, blockToBePlaced);
 						if(!intersect(b.x, b.y, b.z, 5, 5, 5, player.x, player.y, player.z, player.w, player.h, player.d)){
 							chunks[identifyChunk(x, z)].push(b);
@@ -1547,6 +1640,9 @@
 			camera.updateProjectionMatrix();
 			cursor.style.left = ((0.5 * window.innerWidth) - (0.5 * cursor.width)).toString() + "px";
  			cursor.style.top = ((0.5 * window.innerHeight) - (0.5 * cursor.height)).toString() + "px";
+ 			for(var i = 0; i < document.getElementsByClassName("hotbar").length; i++){
+	 			document.getElementsByClassName("hotbar")[i].style.height = (0.05 * window.innerWidth).toString();
+	 		}
 		});
 
 		const raycaster = new THREE.Raycaster();
