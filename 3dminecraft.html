@@ -1,17 +1,52 @@
 <!--
-	Put all the in-game elements in a div, and made that div hidden to start with
-	Put all the code around a listener for when the newGameButton is clicked!
-	Made and styled starting screen elements
+	Made new game button have a high z-index
 	
-	Made and styles escape screen elements GUI
-	Added code in line 860 around in the event listener for when controls get unlocked and also for when controls get locked (toggle between showing escape menu)
-	Put controls.lock() from click event listener also to controls variable declaration (right above)
-	Put all movement code under the if statement of, if controls.isLocked, only then you can move. Also, did the same to JUMPING (&& controls.isLocked)!!!
-	Changed blockToBePlaced definition so that it has an initial state, rather than being null. This is just below the slot variable and above keyPress
-	Added css code for selecting slot just below the above to have an initial css state!
+	Moved addeventlistener for exit and save button at line 303 roughly
+	Created a function, saveWorld, and put it below addeventlistener mentioned above
+	Imported FileSaver.js
 
-	Added code for background switching in title screen
-	Title Screen Button, refresh page and save
+	Added loadGameButton variable in line 191 around
+	Put the whole game in a function with a parameter (what was under newgame event listener) and then put newgame event listener above it
+	Added eventlistener for load game
+	Added input element in title screen GUI in HTML section, accepts only json
+	Created inputFile variable
+	Made it so that when you click the load game, that input HTML element shows up
+	Created loadedData variable
+	Created eventlistener for when user puts a file (change event)
+	Created code inside the change event (from above) for reading the file and created a new function below called logFile which is called
+	Inside the logFile function, added code for making the loadedData variable contain all the loaded data and also called the game("load") function
+	
+	Put if statement for if newOrLoad == load at the very start of game function
+	Moved these variables to the very start of the game function:
+		var worldGen = Math.random();
+	 	var biomeGen = Math.random();
+	 	var treesGen = Math.random();
+
+	 	var chunks = [];
+		var xoff = 0;
+		var zoff = 0;
+		var inc = 0.05;
+		var amplitude = 30 + (Math.random() * 70);
+		var renderDistance = 4;
+		var chunkSize = 10;
+		var depth = 5; // keeps track of the depth of the world (in terms of blocks)
+		var minWorldY = -250; // the minimum y coordinate of a block
+		var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+		camera.position.x = renderDistance * chunkSize / 2 * 5;
+		camera.position.z = renderDistance * chunkSize / 2 * 5;
+		camera.position.y = 50;
+		
+		var placedBlocks = [];
+		var brokenBlocks = [];
+	Made code for editing these variables based on loadedData in same place
+
+	Added placedBlocks code at the end of for-z loop in initial chunk generation code!
+
+	Adding the resetting pictureCount variable using if statement in line roughly 200
+
+	Broken Blocks in initial chunk generation:
+		Added code for broken water just under while()... for water
+		Put code inside the for loop for terrain generation (including trees and leaves), inside an if statement which is inside that for loop and just below the for(var ....), put code for broken blocks!
 -->
 <!DOCTYPE html>
 <html>
@@ -117,6 +152,7 @@
 	<script src = "perlin.js"></script>
 	<script src = "PointerLockControls.js"></script>
 	<script src = "stats.js"></script>
+	<script src = "FileSaver.js"></script>
 
 
 	<div id = "gameScreenGUI">
@@ -142,9 +178,10 @@
 		<img src = "titleScreen/five.jpeg" class = "titleScreen">
 		<img src = "titleScreen/six.jpeg" class = "titleScreen">
 
-		<button id = "newgame" class = "startingButtons" style = "top : 40%">New Game</button>
+		<button id = "newgame" class = "startingButtons" style = "top : 40%; z-index: 10000;">New Game</button>
 		<button id = "loadgame" class = "startingButtons" style = "top : 55%">Load Game</button>
 		<button id = "options" class = "startingButtons" style = "top : 70%">Options</button>
+		<input type = "file" style = "position: absolute; color: white; display: none" id = "inputFile" accept = ".json">
 
 		<img src = "minecraftlogo.png" id = "startingLogo">
 	</div>
@@ -159,11 +196,15 @@
  	<script type="text/javascript">
 
  		var newGameButton = document.getElementById("newgame");
+ 		var loadGameButton = document.getElementById("loadgame");
  		var titleScreenSaveButton = document.getElementById("titlescreensave");
 
  		var pictureCount = 0;
  		timeIntervalPictureChange = 5000;
  		window.setInterval(function(){
+ 			if(pictureCount == document.getElementsByClassName("titleScreen").length){
+ 				pictureCount = 0;
+ 			}
  			var pictures = document.getElementsByClassName("titleScreen");
  			for(var i = 0; i < pictures.length; i++){
  				pictures[i].style.zIndex = -5;
@@ -172,12 +213,71 @@
  			pictureCount++;
  		}, timeIntervalPictureChange);
 
- 		titleScreenSaveButton.addEventListener("click", function(){
- 			window.location.reload();
- 			// saveWorld(); TO BE MADE IN THE NEXT PART!
- 		});
-
  		newGameButton.addEventListener("click", function(){
+ 			game("new");
+		});
+
+ 		var inputFile = document.getElementById("inputFile");
+		loadGameButton.addEventListener("click", function(){
+ 			inputFile.style.display = "block";
+		});
+
+		var loadedData;
+		inputFile.addEventListener("change", function(){
+			loadedData = inputFile.files[0];
+
+			const reader = new FileReader();
+			reader.onload = logFile;
+			reader.readAsText(loadedData);
+		});
+		function logFile(event){
+			let str = event.target.result;
+			let json = JSON.parse(str);
+			loadedData = json;
+			game("load");
+		}
+
+ 		function game(newOrLoad){
+
+ 			var worldGen = Math.random();
+	 		var biomeGen = Math.random();
+	 		var treesGen = Math.random();
+
+	 		var chunks = [];
+			var xoff = 0;
+			var zoff = 0;
+			var inc = 0.05;
+			var amplitude = 30 + (Math.random() * 70);
+			var renderDistance = 4;
+			var chunkSize = 10;
+			var depth = 5; // keeps track of the depth of the world (in terms of blocks)
+			var minWorldY = -250; // the minimum y coordinate of a block
+			var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.x = renderDistance * chunkSize / 2 * 5;
+			camera.position.z = renderDistance * chunkSize / 2 * 5;
+			camera.position.y = 50;
+
+			var placedBlocks = [];
+			var brokenBlocks = [];
+
+ 			if(newOrLoad == "load"){
+ 				worldGen = loadedData.seeds.world;
+				biomeGen = loadedData.seeds.biome;
+				treesGen = loadedData.seeds.trees;
+
+				camera.position.x = loadedData.cameraPosition.x;
+				camera.position.y = loadedData.cameraPosition.y;
+				camera.position.z = loadedData.cameraPosition.z;
+
+				camera.rotation.x = loadedData.playerRotation.x;
+				camera.rotation.y = loadedData.playerRotation.y;
+				camera.rotation.z = loadedData.playerRotation.z;
+
+				placedBlocks = loadedData.editedBlocks.placed;
+				brokenBlocks = loadedData.editedBlocks.destroyed;
+				console.log(placedBlocks, brokenBlocks);
+ 			}
+
  			timeIntervalPictureChange = Infinity;
  			// GUI removal and additions
  			document.getElementById("titleScreenGUI").style.display = "none";
@@ -211,9 +311,48 @@
 
 	 		requestAnimationFrame(animate);
 
-	 		var worldGen = Math.random();
-	 		var biomeGen = Math.random();
-	 		var treesGen = Math.random();
+	 		function saveWorld(){
+	 			/*
+					THINGS TO BE SAVED:
+					- Seed for world, biome and trees
+					- camera/player x, y, z coords
+					- Player camera rotation
+					- Placed blocks
+					- Destroyed blocks
+	 			*/
+	 			var dataToSave = {
+	 				seeds : {
+	 					world : worldGen,
+	 					biome : biomeGen,
+	 					trees : treesGen
+	 				},
+	 				cameraPosition : {
+	 					x : camera.position.x,
+	 					y : camera.position.y,
+	 					z : camera.position.z
+	 				},
+	 				playerRotation : {
+	 					x : camera.rotation.x,
+	 					y : camera.rotation.y,
+	 					z : camera.rotation.z
+	 				},
+	 				editedBlocks : {
+	 					placed : placedBlocks,
+	 					destroyed : brokenBlocks
+	 				}
+	 			};
+				let blob = new Blob(
+					[JSON.stringify(dataToSave)], 
+					{type: 'application/json'}
+				);
+				saveAs(blob, 'save.json');
+ 			}
+
+	 		titleScreenSaveButton.addEventListener("click", function(){
+	 			saveWorld();
+	 			window.location.reload();
+	 			// saveWorld(); TO BE MADE IN THE NEXT PART!
+	 		});
 
 	 		var scene = new THREE.Scene();
 	 		scene.background = new THREE.Color(0x00ffff);
@@ -221,7 +360,6 @@
 			var renderer = new THREE.WebGLRenderer();
 			renderer.setSize(window.innerWidth, window.innerHeight);
 			document.body.appendChild(renderer.domElement);
-			var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 			/*
 			var groundBox = new THREE.BoxBufferGeometry(25, 1, 50);
@@ -285,19 +423,6 @@
 				zoff = zoff + inc;
 			}
 			*/
-
-			var chunks = [];
-			var xoff = 0;
-			var zoff = 0;
-			var inc = 0.05;
-			var amplitude = 30 + (Math.random() * 70);
-			var renderDistance = 4;
-			var chunkSize = 10;
-			var depth = 5; // keeps track of the depth of the world (in terms of blocks)
-			var minWorldY = -250; // the minimum y coordinate of a block
-			camera.position.x = renderDistance * chunkSize / 2 * 5;
-			camera.position.z = renderDistance * chunkSize / 2 * 5;
-			camera.position.y = 50;
 
 			var loader = new THREE.TextureLoader();
 			
@@ -470,7 +595,14 @@
 							var waterExistsHere = false;
 							var h = 5;
 							while(true){
-								if(v + h <= waterLevel){
+								var brokenWaterBlock = false;
+								for(var d = 0; d < brokenBlocks.length; d++){
+									if(brokenBlocks[d].x == x * 5 && brokenBlocks[d].y == v + h && brokenBlocks[d].z == z * 5){
+										brokenWaterBlock = true;
+										break;
+									}
+								}
+								if(v + h <= waterLevel && brokenWaterBlock == false){
 									let matrix = new THREE.Matrix4().makeTranslation(
 										x * 5,
 										v + h,
@@ -487,58 +619,82 @@
 							}
 
 							for(var d = -8; d < depth; d++){
-								if(d >= 0){
-									if(v - (d * 5) < minWorldY){
-										continue;
+								// Try to find a broken block in that position
+								var blockIsDestroyed = false;
+								for(var a = 0; a < brokenBlocks.length; a++){
+									if(brokenBlocks[a].x == x * 5 && brokenBlocks[a].y == v - (d * 5) && brokenBlocks[a].z == z * 5){
+										blockIsDestroyed = true;
+										break;
 									}
-									let matrix = new THREE.Matrix4().makeTranslation(
-										x * 5,
-										v - (d * 5),
-										z * 5
-									);
-									for(var b = 0; b < blocks.length; b++){
-										if(blocks[b].range.includes(d) && blocks[b].biomes.includes(biome)){
-											blocks[b].mesh.setMatrixAt(blocks[b].count, matrix);
-											blocks[b].count++;
-											chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[b].name));
+								}
+								if(!blockIsDestroyed){
+									if(d >= 0){
+										if(v - (d * 5) < minWorldY){
+											continue;
 										}
-									}
-								} else {
-									// TREES!
-									if(biome == "plains" && waterExistsHere == false){
-										// LOGS
-										if(parseFloat(treeNoise.toFixed(3)) == 0.001){
-											if(d < 0 && d >= -8){
-												let logMatrix = new THREE.Matrix4().makeTranslation(
-													x * 5,
-													v - (d * 5),
-													z * 5
-												);
-												if(d != -8){
-													blocks[oakLogIndex].mesh.setMatrixAt(blocks[oakLogIndex].count, logMatrix);
-													blocks[oakLogIndex].count++;
-													chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLogIndex].name));
-												} else { // TOP LEAf
-													blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, logMatrix);
+										let matrix = new THREE.Matrix4().makeTranslation(
+											x * 5,
+											v - (d * 5),
+											z * 5
+										);
+										for(var b = 0; b < blocks.length; b++){
+											if(blocks[b].range.includes(d) && blocks[b].biomes.includes(biome)){
+												blocks[b].mesh.setMatrixAt(blocks[b].count, matrix);
+												blocks[b].count++;
+												chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[b].name));
+											}
+										}
+									} else {
+										// TREES!
+										if(biome == "plains" && waterExistsHere == false){
+											// LOGS
+											if(parseFloat(treeNoise.toFixed(3)) == 0.001){
+												if(d < 0 && d >= -8){
+													let logMatrix = new THREE.Matrix4().makeTranslation(
+														x * 5,
+														v - (d * 5),
+														z * 5
+													);
+													if(d != -8){
+														blocks[oakLogIndex].mesh.setMatrixAt(blocks[oakLogIndex].count, logMatrix);
+														blocks[oakLogIndex].count++;
+														chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLogIndex].name));
+													} else { // TOP LEAf
+														blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, logMatrix);
+														blocks[oakLeavesIndex].count++;
+														chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLeavesIndex].name));
+													}
+												}
+											}
+											// LEAVES
+											if(d <= -6 && canPutLeaf){
+												if(parseFloat(treeNoise.toFixed(3)) != 0.001){
+													let leafMatrix = new THREE.Matrix4().makeTranslation(
+														x * 5,
+														v - (d * 5),
+														z * 5
+													);
+													blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, leafMatrix);
 													blocks[oakLeavesIndex].count++;
 													chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLeavesIndex].name));
 												}
 											}
 										}
-										// LEAVES
-										if(d <= -6 && canPutLeaf){
-											if(parseFloat(treeNoise.toFixed(3)) != 0.001){
-												let leafMatrix = new THREE.Matrix4().makeTranslation(
-													x * 5,
-													v - (d * 5),
-													z * 5
-												);
-												blocks[oakLeavesIndex].mesh.setMatrixAt(blocks[oakLeavesIndex].count, leafMatrix);
-												blocks[oakLeavesIndex].count++;
-												chunk.push(new Block(x * 5, v - (d * 5), z * 5, false, blocks[oakLeavesIndex].name));
-											}
-										}
 									}
+								}
+							}
+							for(var b = 0; b < placedBlocks.length; b++){
+								if(placedBlocks[b].x == x * 5 && placedBlocks[b].z == z * 5){
+									var ind = blockTypes.indexOf(placedBlocks[b].blockType);
+									let placedBlocksMatrix = new THREE.Matrix4().makeTranslation(
+										placedBlocks[b].x,
+										placedBlocks[b].y,
+										placedBlocks[b].z
+									);
+									blocks[ind].mesh.setMatrixAt(blocks[ind].count, placedBlocksMatrix);
+									blocks[ind].count++;
+									chunk.push(new Block(placedBlocks[b].x, placedBlocks[b].y, placedBlocks[b].z, true, placedBlocks[b].blockType));
+									console.log(1);
 								}
 							}
 						}
@@ -562,7 +718,6 @@
 				placeBlock : "q" 
 			};
 
-			var placedBlocks = [];
 			var chunkMap = [];
 			for(var x = 0; x < renderDistance; x++){
 				for(var z = 0; z < renderDistance; z++){
@@ -762,7 +917,6 @@
 
 			var controls = new THREE.PointerLockControls(camera, document.body);
 			controls.lock();
-			var brokenBlocks = [];
 			document.body.addEventListener("click", function(){
 				controls.lock();
 				// Breaking blocks
@@ -1863,7 +2017,7 @@
 			}
 
 			GameLoop();
-		});
+ 		}
  	</script>
 </body>
 </html>
