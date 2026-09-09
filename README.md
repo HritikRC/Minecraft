@@ -18,7 +18,7 @@
 
 <h3>Information:</h3>
 
-A Minecraft-spinoff built entirely in JavaScript, for the web!
+_**A Minecraft-spinoff built entirely in JavaScript, for the web!**_
 
 All the files for the youtube series, "How to Code Minecraft in Javascript" are located here!
 
