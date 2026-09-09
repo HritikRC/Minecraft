@@ -1,4 +1,21 @@
 # Minecraft
+
+<h3>In-Game Photos:</h3>
+<table>
+  <tr>
+    <td><img width="1440" height="809" alt="Title Screen" src="https://github.com/user-attachments/assets/6302508b-416e-4b96-9049-55bdf0efa3f1" />
+</td>
+    <td><img width="1440" height="809" alt="Building" src="https://github.com/user-attachments/assets/06478522-50fa-4c30-941c-72399c704350" />
+</td>
+  </tr>
+  <tr>
+    <td><img width="1440" height="810" alt="More" src="https://github.com/user-attachments/assets/00574044-c689-4baa-a2b3-a1ab96237116" />
+</td>
+    <td><img width="1440" height="810" alt="More" src="https://github.com/user-attachments/assets/d08fd2dc-f602-4f1d-91ba-d492a29f46f6" />
+</td>
+  </tr>
+</table>
+
 A Minecraft-spinoff built entirely in JavaScript, for the web!
 
 All the files for the youtube series, "How to Code Minecraft in Javascript" are located here!
@@ -34,19 +51,3 @@ If you have any questions, please ask either here, discord or in youtube.
 - Playlist for the minecraft series: https://www.youtube.com/playlist?list=PLEtXCX1lakbhq_01JKJILx90wLfdwrJig
 
 Thanks for the support! :)
-
-<h3>In-Game Photos:</h3>
-<table>
-  <tr>
-    <td><img width="1440" height="809" alt="Title Screen" src="https://github.com/user-attachments/assets/6302508b-416e-4b96-9049-55bdf0efa3f1" />
-</td>
-    <td><img width="1440" height="809" alt="Building" src="https://github.com/user-attachments/assets/06478522-50fa-4c30-941c-72399c704350" />
-</td>
-  </tr>
-  <tr>
-    <td><img width="1440" height="810" alt="More" src="https://github.com/user-attachments/assets/00574044-c689-4baa-a2b3-a1ab96237116" />
-</td>
-    <td><img width="1440" height="810" alt="More" src="https://github.com/user-attachments/assets/d08fd2dc-f602-4f1d-91ba-d492a29f46f6" />
-</td>
-  </tr>
-</table>
