@@ -1,5 +1,7 @@
 # Minecraft
 
+This is the first ever full and comprehensive development and tutorial series of a web-based Minecraft. The code is available in this GitHub repo, and the video series is available in YouTube (see links below.)
+
 <h3>In-Game Photos:</h3>
 <table>
   <tr>
